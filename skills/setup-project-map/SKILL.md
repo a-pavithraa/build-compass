@@ -1,10 +1,10 @@
 ---
 name: setup-project-map
-description: One-time setup for the project-map plugin.
+description: One-time setup for the build-compass plugin.
 disable-model-invocation: true
 ---
 
-# Set up project-map
+# Set up build-compass
 
 Run each step, then report what was done and what was skipped.
 

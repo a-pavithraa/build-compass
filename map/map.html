@@ -245,8 +245,9 @@ ul.opts{margin:10px 0 0;padding-left:18px;font-size:14px;color:var(--ink)}
 ul.opts small{color:var(--ink-3)}
 .paste{margin-top:14px;padding:12px;border-radius:7px;background:var(--ground)}
 .paste code{display:block;font-family:var(--mono);font-size:13px;color:var(--ink);white-space:pre-wrap;word-break:break-word;user-select:all}
-.paste .row{display:flex;align-items:center;gap:12px;margin-top:10px}
-.paste .row .btn{margin-top:0}
+.paste .row{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-top:10px}
+.paste .row .btn{margin-top:0;white-space:nowrap}
+.paste > .msg{margin:0 0 10px}
 .paste .msg{font-size:13px;color:var(--ink-2)}
 .paste .msg.err{color:var(--stuck)}
 
@@ -334,6 +335,25 @@ ul.opts small{color:var(--ink-3)}
     DECS.forEach(function(d){byId[d.id]={type:'decision',o:d};});
     var state = {sel:null, filter:null, picks:{}};
     var changed = arr(U.changed);
+
+    /* Picks outlive the page's own reloads. A pick is kept only while its decision is still open
+       and still offers that option, so an answer Claude has recorded clears itself. */
+    function answerable(d){ return !d.answer && !d.readOnly; }
+    var STORE = 'project-map:'+(D.project||'')+':'+location.pathname;
+    try{
+      var saved = JSON.parse(localStorage.getItem(STORE) || '{}');
+      DECS.forEach(function(d){ if(answerable(d) && arr(d.options).indexOf(saved[d.id])>=0) state.picks[d.id] = saved[d.id]; });
+    }catch(x){ state.picks = {}; }
+    function persist(){ try{ localStorage.setItem(STORE, JSON.stringify(state.picks)); }catch(x){ /* saving picks is a convenience only */ } }
+    function answers(){
+      var open = DECS.filter(answerable), picked = open.filter(function(d){return state.picks[d.id];});
+      var lines = ['Map answers: '+(D.project||'Project')+' (map version '+(U.version||'?')+(U.readAtShort||U.readAt?', read '+(U.readAtShort||U.readAt):'')+')', ''];
+      open.forEach(function(d){
+        lines.push(shown(d)+'. '+d.question);
+        lines.push('   -> '+(state.picks[d.id] || '(no answer; the default stands: '+(d['default']||'no default')+')'));
+      });
+      return {text:lines.join('\n'), open:open.length, picked:picked.length};
+    }
 
     var ICON = {
       chev:'<svg class="i" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5"/></svg>',
@@ -468,6 +488,12 @@ ul.opts small{color:var(--ink-3)}
           + '<span class="d">'+line+(w.length?' Waiting on it: '+w.map(function(x){return e(shown(task(x)));}).join(', ')+'.':'')+'</span></button>';
       });
       if(!DECS.length) h += '<p class="empty">Nothing needs your call right now.</p>';
+      var A = answers();
+      if(A.picked){
+        h += '<div class="paste" id="answers"><p class="msg"><b>'+A.picked+' of '+A.open+' answered.</b> Copy them all and paste them to Claude in one go; the next update of the map records them.</p>'
+          + '<code id="line">'+e(A.text)+'</code><div class="row"><button class="btn" id="copy">'+ICON.copy+'Copy answers</button>'
+          + '<button class="btn quiet" id="clearpicks">Clear picks</button><span class="msg" id="copymsg" role="status"></span></div></div>';
+      }
       h += '</section>';
       var F = arr(D.findings);
       if(F.length){
@@ -613,12 +639,12 @@ ul.opts small{color:var(--ink-3)}
           });
           h += '</fieldset>';
           if(pick){
-            var line = (D.project||'Project')+' map, decision '+shown(o)+(o.short?' ('+o.short+')':'')+': '+pick+'.';
-            h += '<div class="paste"><code id="line">'+e(line)+'</code><div class="row"><button class="btn quiet" id="copy">'+ICON.copy+'Copy this line</button>'
-              + '<span class="msg" id="copymsg" role="status"></span></div></div>'
-              + '<p class="meta">This page is opened from disk and cannot save itself. Paste the line to Claude; the next update of the map records your answer.</p>';
+            var A = answers();
+            h += '<p class="meta">Added to your answers: '+A.picked+' of '+A.open+' answered. <button class="count" id="toanswers">Copy them from the decisions list</button>'
+              + ' &middot; <button class="count" id="unpick">Remove this pick</button></p>'
+              + '<p class="meta">This page is opened from disk and cannot save itself. Claude records your answers when you paste them.</p>';
           } else {
-            h += '<p class="meta">Picking shows a line to paste back to Claude. This page is opened from disk and cannot save itself.</p>';
+            h += '<p class="meta">Your pick joins one block of answers in the decisions list, to copy and paste to Claude in one go. This page is opened from disk and cannot save itself.</p>';
           }
         }
         var w = arr(o.waiting);
@@ -654,7 +680,10 @@ ul.opts small{color:var(--ink-3)}
       if(t.hasAttribute('data-filter')){ var f=t.getAttribute('data-filter'); state.filter = (!f||state.filter===f)?null:f; render();
         var again=document.querySelector('[data-filter="'+f+'"]'); if(again) again.focus(); return; }
       if(t.id==='copy'){ copyLine(); return; }
-      if(t.name==='pick'){ state.picks[state.sel]=t.value; render(); refreshDetail(); var c=document.querySelector('input[name=pick]:checked'); if(c) c.focus(); return; }
+      if(t.name==='pick'){ state.picks[state.sel]=t.value; persist(); render(); refreshDetail(); var c=document.querySelector('input[name=pick]:checked'); if(c) c.focus(); return; }
+      if(t.id==='unpick'){ delete state.picks[state.sel]; persist(); render(); refreshDetail(); var first=document.querySelector('input[name=pick]'); if(first) first.focus(); return; }
+      if(t.id==='clearpicks'){ state.picks={}; persist(); render(); if(state.sel) refreshDetail(); var dec=document.querySelector('#page .dec'); if(dec) dec.focus(); return; }
+      if(t.id==='toanswers'){ select(null); var box=document.getElementById('answers'); if(box){ box.scrollIntoView({block:'center'}); document.getElementById('copy').focus(); } return; }
       var r = t.getAttribute('data-ref');
       if(r){ if(t.hasAttribute('data-keep') && state.sel===r) return; select(r); }
     });

@@ -1,17 +1,17 @@
-# project-map
+# build-compass
 
 ![A project map for a small booking app: four parts with their statuses, the next milestone and a suggested next step](docs/example-map.png)
 
 **Know where your project stands without reading the transcript.**
 
-When Claude Code works on its own for an hour, the only record of what happened is a transcript nobody wants to read. project-map makes Claude keep one page up to date as it works: what is done, what is in progress, what is stuck and on what, and what to do next. Open it with a double-click, any time.
+When Claude Code works on its own for an hour, the only record of what happened is a transcript nobody wants to read. build-compass makes Claude keep one page up to date as it works: what is done, what is in progress, what is stuck and on what, and what to do next. Open it with a double-click, any time.
 
 ```bash
-claude plugin marketplace add a-pavithraa/project-map
-claude plugin install project-map@a-pavithraa
+claude plugin marketplace add a-pavithraa/build-compass
+claude plugin install build-compass@a-pavithraa
 ```
 
-Then, once, inside Claude Code: `/project-map:setup-project-map`
+Then, once, inside Claude Code: `/build-compass:setup-project-map`
 
 The picture above is a real map, drawn by this plugin for a made-up booking app.
 
@@ -70,7 +70,7 @@ Source: [mattpocock/skills](https://github.com/mattpocock/skills), MIT.
 
 *Needed only if you want maps built from plans.* It writes an implementation plan as one HTML page. The plan is a tree of claims: what someone can now do, how that works, and where in the code. Each claim is backed by one exhibit, such as a mockup, a call stack or a schema. The decisions you need to make sit on the claim they change. You pick options, comment, press **Respond**, and paste one answer back.
 
-When a project has such a plan, the map is built from it: each top-level claim becomes a part, the claims under it become tasks, and the plan's unanswered decisions show on the map until you answer them in the plan.
+When a project has such a plan, the map is built from it: each top-level claim becomes a part, the claims under it become tasks, and the plan's unanswered decisions show on the map until you answer them in the plan. A claim keeps its place on the map when the plan is reworded or renumbered. When you paste your response to the plan, it is saved, so the map knows the plan was answered. If the plan changes after that, the map shows it as waiting for you again.
 
 ```bash
 claude plugin marketplace add anthropics/claude-plugins-community
@@ -91,7 +91,7 @@ Everything is clickable. Parts, tasks, milestone items and decisions open their 
 
 **Your style, asked once.** Dark or light, and one accent color. Every map on your machine uses it.
 
-**Two files.** `.project-map/map.html` is the page, the same for every project. `.project-map/map-data.js` is your project. Milestones live in the data file; edit them there and the agent keeps your edits. A page opened from disk cannot save itself, so when you pick an option on a decision, the page gives you a line to paste back to Claude.
+**Two files.** `.project-map/map.html` is the page, the same for every project. `.project-map/map-data.js` is your project. Milestones live in the data file; edit them there and the agent keeps your edits. A page opened from disk cannot save itself, so your picks on decisions collect in one block of answers under the decision list. Press **Copy answers** and paste it to Claude once. Picks survive the page's own reloads, and each one clears itself once the map records your answer.
 
 **It stays current.** Leave the map open in a tab. It reloads itself when the data changes.
 
@@ -117,7 +117,7 @@ Ask Claude to "grill me in a page" about whatever you are planning.
 
 It reads the code, git history, the README and docs, plans, and GitHub issues and pull requests if the `gh` CLI is set up.
 
-It writes to `.project-map/` in the project, adds that folder to `.gitignore`, and keeps earlier versions of the data in `.project-map/history/`. It does not change project code, commit, or run builds and tests.
+It writes to `.project-map/` in the project, adds that folder to `.gitignore`, and keeps the last 20 versions of the data in `.project-map/history/`. Commits, file lists and line counts come from a script that reads git, not from the model, and every hash and path on the map is checked against git before the map is shown. It does not change project code, commit, or run builds and tests.
 
 That boundary is an instruction in the agent's prompt, not a sandbox. The agent has shell access so it can read git history. If you need a hard guarantee, add a permission rule or hook of your own.
 
@@ -142,7 +142,7 @@ If you would rather not use the plugin, copy the pieces into your own folders:
 ```bash
 mkdir -p ~/.claude/agents ~/.claude/skills ~/.claude/project-map
 cp agents/project-map.md ~/.claude/agents/
-cp map/map.html map/check.mjs ~/.claude/project-map/
+cp map/map.html map/check.mjs map/gather.mjs map/plan-extract.mjs ~/.claude/project-map/
 cp -r skills/mapping-progress skills/grill-page ~/.claude/skills/
 ```
 

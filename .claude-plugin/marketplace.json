@@ -4,10 +4,10 @@
     "name": "Pavithra Aravamudhan",
     "url": "https://github.com/a-pavithraa"
   },
-  "description": "The project-map plugin for Claude Code.",
+  "description": "The build-compass plugin for Claude Code.",
   "plugins": [
     {
-      "name": "project-map",
+      "name": "build-compass",
       "source": "./",
       "description": "A subagent that draws a clickable map of where your project stands, plus skills to keep it current and to answer grilling questions in a page.",
       "category": "productivity",
