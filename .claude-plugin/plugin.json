@@ -1,0 +1,21 @@
+{
+  "name": "project-map",
+  "version": "0.1.0",
+  "description": "A subagent that draws a clickable map of where your project stands, plus skills to keep it current and to answer grilling questions in a page.",
+  "author": {
+    "name": "Pavithra Aravamudhan",
+    "url": "https://github.com/a-pavithraa"
+  },
+  "homepage": "https://github.com/a-pavithraa/project-map",
+  "repository": "https://github.com/a-pavithraa/project-map",
+  "license": "MIT",
+  "keywords": [
+    "project-map",
+    "progress",
+    "status",
+    "planning",
+    "grilling",
+    "html-plan",
+    "subagent"
+  ]
+}

@@ -1,0 +1,485 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Grilling</title>
+<style>
+  :root {
+    --accent: #3B82F6;
+    --base: #fbfaf7; --ink: #171a21; --muted: #565d6b;
+    --open: #8a5a00; --done: #1f6b43;
+    --bg: color-mix(in oklab, var(--accent) 4%, var(--base));
+    --raised: color-mix(in oklab, var(--accent) 2%, #ffffff);
+    --rule: color-mix(in oklab, var(--accent) 14%, #d9d6cd);
+    --tint: color-mix(in oklab, var(--accent) 11%, var(--base));
+    --accent-ink: color-mix(in oklab, var(--accent) 68%, #000000);
+    --on-accent: #0b1020;
+    --serif: Charter, "Bitstream Charter", "Iowan Old Style", "Palatino Linotype", Cambria, Georgia, serif;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    --mono: ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace;
+    --ease: cubic-bezier(.16, 1, .3, 1);
+    --gutter: 44px;
+    color-scheme: light;
+  }
+  :root[data-theme="dark"] {
+    --base: #0c0e13; --ink: #e9ecf3; --muted: #9da6b8;
+    --open: #e2a85a; --done: #6fc796;
+    --bg: color-mix(in oklab, var(--accent) 7%, var(--base));
+    --raised: color-mix(in oklab, var(--accent) 11%, var(--base));
+    --rule: color-mix(in oklab, var(--accent) 24%, #262a33);
+    --tint: color-mix(in oklab, var(--accent) 18%, var(--base));
+    --accent-ink: color-mix(in oklab, var(--accent) 72%, #ffffff);
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; scrollbar-color: var(--rule) var(--bg); }
+  ::selection { background: color-mix(in oklab, var(--accent) 38%, transparent); color: var(--ink); }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 400 1rem/1.55 var(--sans);
+    padding: 0 20px 132px;
+    caret-color: var(--accent);
+    accent-color: var(--accent);
+    -webkit-text-size-adjust: 100%;
+  }
+  .page { max-width: 44rem; margin: 0 auto; }
+
+  .top { padding: 64px 0 28px; }
+  h1 {
+    font: 600 clamp(1.9rem, 1.2rem + 3vw, 2.75rem)/1.12 var(--serif);
+    letter-spacing: -0.02em; margin: 0; text-wrap: balance;
+  }
+  .meta { margin: 14px 0 0; color: var(--muted); font-size: .9375rem; font-variant-numeric: tabular-nums; }
+  .meta b { color: var(--ink); font-weight: 600; }
+
+  /* The design tree: one spine, a node per decision. */
+  .tree { list-style: none; margin: 0; padding: 0; position: relative; }
+  .tree::before {
+    content: ""; position: absolute; top: 12px; bottom: 12px; left: 11px;
+    width: 2px; background: var(--rule); border-radius: 2px;
+  }
+  .node { position: relative; padding: 0 0 52px var(--gutter); }
+  .node:last-child { padding-bottom: 8px; }
+  .mark {
+    position: absolute; left: 0; top: 2px; width: 24px; height: 24px; border-radius: 50%;
+    background: var(--bg); border: 2px solid var(--open);
+    display: grid; place-items: center;
+    transition: background-color .28s var(--ease), border-color .28s var(--ease);
+  }
+  .mark svg { width: 12px; height: 12px; stroke: var(--on-accent); stroke-width: 2.4; fill: none; stroke-linecap: round; stroke-linejoin: round; opacity: 0; transform: scale(.6); transition: opacity .2s var(--ease), transform .28s var(--ease); }
+  .node.seen .mark, .node.settled .mark { background: var(--accent); border-color: var(--accent); }
+  .node.seen .mark svg, .node.settled .mark svg { opacity: 1; transform: none; }
+  .node.settled .mark { width: 16px; height: 16px; left: 4px; top: 5px; }
+  .node.settled .mark svg { width: 9px; height: 9px; }
+
+  .earlier { padding-bottom: 36px; }
+  .earlier summary {
+    cursor: pointer; color: var(--muted); font-size: .9375rem; list-style: none;
+    display: inline-flex; align-items: center; gap: 8px; padding: 2px 0; border-radius: 4px;
+  }
+  .earlier summary::-webkit-details-marker { display: none; }
+  .earlier summary svg { width: 10px; height: 10px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; transition: transform .2s var(--ease); }
+  .earlier[open] summary svg { transform: rotate(90deg); }
+  .earlier summary:hover { color: var(--ink); }
+  .earlier dl { margin: 14px 0 0; display: grid; gap: 14px; }
+  .earlier dt { font-size: .9375rem; color: var(--muted); }
+  .earlier dd { margin: 2px 0 0; font-weight: 600; }
+
+  .qhead { display: flex; align-items: baseline; gap: 12px; }
+  .qid { font: 600 .8125rem/1 var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; flex: none; }
+  .qtitle { font: 600 1.3125rem/1.3 var(--serif); letter-spacing: -0.01em; margin: 0; text-wrap: balance; flex: 1; min-width: 0; }
+  .state { flex: none; font-size: .8125rem; font-weight: 600; color: var(--open); white-space: nowrap; }
+  .node.seen .state { color: var(--done); }
+  .qbody { margin: 10px 0 0; white-space: pre-wrap; max-width: 68ch; }
+  .why { margin: 8px 0 0; color: var(--muted); font-size: .9375rem; max-width: 68ch; }
+
+  .opts { margin: 18px 0 0; border-top: 1px solid var(--rule); }
+  .opt {
+    display: flex; gap: 14px; align-items: flex-start; padding: 13px 12px;
+    border-bottom: 1px solid var(--rule); cursor: pointer;
+    transition: background-color .16s var(--ease);
+  }
+  .opt:hover { background: color-mix(in oklab, var(--tint) 55%, transparent); }
+  .opt:has(input:checked) { background: var(--tint); }
+  .opt:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .opt > input { margin: 3px 0 0; width: 18px; height: 18px; flex: none; cursor: pointer; }
+  .opt > input:focus-visible { outline: none; }
+  .ot { flex: 1; min-width: 0; }
+  .ol { font-weight: 500; }
+  .opt:has(input:checked) .ol { font-weight: 600; }
+  .od { display: block; color: var(--muted); font-size: .9375rem; margin-top: 2px; }
+  .rec { margin-left: 10px; font-size: .8125rem; font-weight: 600; color: var(--accent-ink); white-space: nowrap; }
+
+  input[type="text"], textarea {
+    width: 100%; font: inherit; color: var(--ink); background: var(--raised);
+    border: 1px solid var(--rule); border-radius: 6px; padding: 9px 11px;
+    transition: border-color .16s var(--ease);
+  }
+  input[type="text"]::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; }
+  input[type="text"]:hover, textarea:hover { border-color: color-mix(in oklab, var(--accent) 45%, var(--rule)); }
+  input[type="text"]:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent); }
+  .ot input[type="text"] { margin-top: 8px; }
+  .note { margin-top: 14px; }
+  .note label { display: block; font-size: .875rem; color: var(--muted); margin-bottom: 6px; }
+  .note textarea { resize: vertical; min-height: 44px; }
+
+  .empty, .err { margin: 40px 0; max-width: 60ch; }
+  .err { color: var(--open); }
+  .err b { display: block; font: 600 1.25rem/1.3 var(--serif); color: var(--ink); margin-bottom: 6px; }
+
+  .sheet { margin: 12px 0 0 var(--gutter); padding-top: 28px; border-top: 2px solid var(--ink); }
+  .sheet[hidden] { display: none; }
+  .sheet h2 { font: 600 1.3125rem/1.3 var(--serif); letter-spacing: -0.01em; margin: 0; }
+  .sheet p { margin: 6px 0 16px; color: var(--muted); max-width: 60ch; }
+  .sheet textarea { min-height: 240px; font: .875rem/1.6 var(--mono); resize: vertical; tab-size: 3; }
+  .sheet.show { animation: reveal .5s var(--ease) both; }
+  @keyframes reveal {
+    from { opacity: 0; clip-path: inset(0 0 100% 0); transform: translateY(-6px); }
+    to { opacity: 1; clip-path: inset(0 0 0 0); transform: none; }
+  }
+
+  .bar {
+    position: fixed; left: 0; right: 0; bottom: 0; background: var(--raised);
+    border-top: 1px solid var(--rule); padding: 12px 20px calc(12px + env(safe-area-inset-bottom));
+    box-shadow: 0 -8px 24px -12px color-mix(in oklab, var(--base) 50%, #000000);
+  }
+  .bar-in { max-width: 44rem; margin: 0 auto; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .progress { flex: 1; min-width: 150px; font-size: .9375rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .progress b { color: var(--ink); font-weight: 600; }
+  .track { height: 3px; background: var(--rule); border-radius: 3px; margin-top: 7px; overflow: hidden; max-width: 220px; }
+  .fill { height: 100%; width: 0; background: var(--accent); border-radius: 3px; transition: width .4s var(--ease); }
+  button {
+    font: 600 .9375rem/1 var(--sans); border-radius: 7px; padding: 12px 18px; cursor: pointer;
+    border: 1px solid var(--rule); background: transparent; color: var(--ink);
+    transition: background-color .16s var(--ease), border-color .16s var(--ease), transform .12s var(--ease);
+  }
+  button:hover { background: var(--tint); border-color: color-mix(in oklab, var(--accent) 45%, var(--rule)); }
+  button:active { transform: translateY(1px); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+  button.primary:hover { background: color-mix(in oklab, var(--accent) 88%, var(--ink)); border-color: transparent; }
+  button[hidden] { display: none; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  @media (max-width: 560px) {
+    :root { --gutter: 36px; }
+    body { padding: 0 16px 148px; }
+    .top { padding: 40px 0 22px; }
+    .qhead { flex-wrap: wrap; row-gap: 6px; }
+    .qtitle { flex-basis: 100%; order: 3; }
+    .state { margin-left: auto; }
+    .node { padding-bottom: 44px; }
+    .rec { display: block; margin: 2px 0 0; }
+    .sheet { margin-left: 0; }
+    .progress { flex-basis: 100%; }
+    .bar-in button { flex: 1; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="page" id="app"></div>
+<div class="bar"><div class="bar-in">
+  <div class="progress">
+    <span id="msg" role="status" aria-live="polite"></span>
+    <div class="track" aria-hidden="true"><div class="fill" id="fill"></div></div>
+  </div>
+  <button type="button" id="next">Next to answer</button>
+  <button type="button" id="copy" class="primary">Copy answers</button>
+</div></div>
+
+<!-- The questions for this round. Claude rewrites grill-data.js each round; this page never changes. -->
+<script src="grill-data.js"></script>
+<script>
+(function () {
+  var app = document.getElementById('app');
+  var D = window.GRILL;
+
+  /* A page opened from disk cannot be pushed to, so it re-reads its own questions file
+     and reloads when Claude has written a new round. */
+  function stamp(g) { return g ? (g.written || JSON.stringify(g.questions || [])) + '|' + (g.round || '') : ''; }
+  var loaded = stamp(D);
+  setInterval(function () {
+    var probe = document.createElement('script');
+    probe.src = 'grill-data.js?t=' + Date.now();
+    probe.onload = function () {
+      probe.remove();
+      if (stamp(window.GRILL) === loaded) return;
+      try { sessionStorage.setItem('grill:new', '1'); } catch (e) { /* the tab still reloads */ }
+      location.reload();
+    };
+    probe.onerror = function () { probe.remove(); };
+    document.head.appendChild(probe);
+  }, 2000);
+
+  function tabIcon(filled) {
+    var accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#3B82F6';
+    var shape = filled
+      ? "<circle cx='16' cy='16' r='14' fill='" + accent + "'/>"
+      : "<circle cx='16' cy='16' r='11' fill='none' stroke='" + accent + "' stroke-width='4'/>";
+    var link = document.querySelector('link[rel="icon"]');
+    if (!link) { link = document.createElement('link'); link.rel = 'icon'; document.head.appendChild(link); }
+    link.href = 'data:image/svg+xml,' + encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'>" + shape + '</svg>');
+  }
+  function announce(title) {
+    var rest = document.title, filled = true;
+    var still = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    document.title = title;
+    tabIcon(true);
+    var blink = still ? null : setInterval(function () { filled = !filled; tabIcon(filled); }, 700);
+    function stop() {
+      if (blink) clearInterval(blink);
+      tabIcon(false);
+      document.title = rest;
+      window.removeEventListener('focus', stop);
+      document.removeEventListener('visibilitychange', seen);
+      document.removeEventListener('pointerdown', stop);
+    }
+    function seen() { if (!document.hidden) stop(); }
+    window.addEventListener('focus', stop);
+    document.addEventListener('visibilitychange', seen);
+    document.addEventListener('pointerdown', stop);
+  }
+  var arrived = false;
+  try { arrived = sessionStorage.getItem('grill:new') === '1'; sessionStorage.removeItem('grill:new'); } catch (e) { arrived = false; }
+  var msg = document.getElementById('msg');
+  var fill = document.getElementById('fill');
+  var nextBtn = document.getElementById('next');
+  var copyBtn = document.getElementById('copy');
+  var CHECK = '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 6.4l2.3 2.3 4.7-5.2"/></svg>';
+  var CHEVRON = '<svg viewBox="0 0 10 10" aria-hidden="true"><path d="M3.5 1.5l3.5 3.5-3.5 3.5"/></svg>';
+
+  function el(tag, attrs) {
+    var e = document.createElement(tag);
+    if (attrs) Object.keys(attrs).forEach(function (k) {
+      if (k === 'text') e.textContent = attrs[k];
+      else if (k === 'html') e.innerHTML = attrs[k];
+      else if (k === 'class') e.className = attrs[k];
+      else e.setAttribute(k, attrs[k]);
+    });
+    for (var i = 2; i < arguments.length; i++) {
+      var c = arguments[i];
+      if (c == null || c === false) continue;
+      if (Array.isArray(c)) c.forEach(function (x) { if (x) e.appendChild(x); });
+      else e.appendChild(typeof c === 'string' ? document.createTextNode(c) : c);
+    }
+    return e;
+  }
+  function plural(n, one, many) { return n + ' ' + (n === 1 ? one : many); }
+
+  var style = (D && D.style) || {};
+  var theme = style.theme || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  document.documentElement.setAttribute('data-theme', theme);
+  if (style.accent) document.documentElement.style.setProperty('--accent', style.accent);
+  tabIcon(false);
+
+  if (!D || !Array.isArray(D.questions)) {
+    app.appendChild(el('div', { class: 'err' }, el('b', { text: 'No questions to show' }),
+      'This page reads its questions from grill-data.js in the same folder. That file is missing or is not valid. Ask Claude to write the round again.'));
+    document.querySelector('.bar').hidden = true;
+    return;
+  }
+
+  document.title = 'Grilling: ' + (D.topic || '');
+  var round = D.round || 1;
+  if (arrived && (document.hidden || !document.hasFocus())) announce('Round ' + round + ' is ready: ' + (D.topic || 'grilling'));
+  var storeKey = 'grill:' + (D.topic || '') + ':' + round + ':' + (D.written || '');
+  var saved = {};
+  try { saved = JSON.parse(localStorage.getItem(storeKey) || '{}'); } catch (e) { saved = {}; }
+  function persist() { try { localStorage.setItem(storeKey, JSON.stringify(state)); } catch (e) { /* storage is a convenience only */ } }
+
+  var OTHER = '__other__';
+  function answered(st) {
+    return st.picked.some(function (v) { return v !== OTHER || (st.other || '').trim() !== ''; });
+  }
+  function optionLabel(o) { return typeof o === 'string' ? o : (o && o.label) || ''; }
+  function signature(q) { return JSON.stringify([q.question || '', !!q.multi, (q.options || []).map(optionLabel)]); }
+  function restorable(s, q, sig) {
+    if (!s || s.sig !== sig || !Array.isArray(s.picked)) return false;
+    var n = (q.options || []).length;
+    return s.picked.every(function (v) { return v === OTHER || (typeof v === 'number' && v % 1 === 0 && v >= 0 && v < n); });
+  }
+
+  var state = {};
+  D.questions.forEach(function (q, i) {
+    var id = q.id || ('Q' + (i + 1));
+    q.id = id;
+    var s = saved[id];
+    var sig = signature(q);
+    state[id] = restorable(s, q, sig) ? s : { picked: [], other: '', note: '' };
+    state[id].sig = sig;
+  });
+
+  var decided = D.decided || [];
+  var total = D.questions.length;
+  app.appendChild(el('header', { class: 'top' },
+    el('h1', { text: D.topic || 'Questions for you' }),
+    el('p', { class: 'meta' }, el('b', { text: 'Round ' + round }), ', ' + plural(total, 'question', 'questions') + ' to answer' +
+      (decided.length ? ', ' + decided.length + ' decided earlier' : '') + '.')));
+
+  if (!total) {
+    app.appendChild(el('p', { class: 'empty', text: 'Nothing to answer this round. Go back to Claude.' }));
+    document.querySelector('.bar').hidden = true;
+    return;
+  }
+
+  var tree = el('ol', { class: 'tree' });
+  app.appendChild(tree);
+
+  if (decided.length) {
+    tree.appendChild(el('li', { class: 'node settled earlier-node' },
+      el('span', { class: 'mark', html: CHECK }),
+      el('details', { class: 'earlier' },
+        el('summary', null, el('span', { html: CHEVRON }), plural(decided.length, 'decision', 'decisions') + ' already made'),
+        el('dl', null, decided.map(function (d) {
+          return el('div', null, el('dt', { text: d.question || '' }), el('dd', { text: d.answer || '' }));
+        })))));
+  }
+
+  var cards = {};
+  D.questions.forEach(function (q, i) {
+    var st = state[q.id];
+    var type = q.multi ? 'checkbox' : 'radio';
+    var stateTag = el('span', { class: 'state' });
+    var card = el('li', { class: 'node q', id: 'card-' + q.id, role: 'group', 'aria-labelledby': 'head-' + q.id },
+      el('span', { class: 'mark', html: CHECK }),
+      el('div', { class: 'qhead' },
+        el('span', { class: 'qid', text: q.id }),
+        el('h2', { class: 'qtitle', id: 'head-' + q.id, text: q.question || '' }),
+        stateTag),
+      q.body ? el('div', { class: 'qbody', text: q.body }) : null,
+      q.why ? el('p', { class: 'why', text: 'Why it matters: ' + q.why }) : null);
+    var opts = el('div', { class: 'opts' });
+
+    function changed() { refresh(); persist(); }
+    function setPicked(val, on) {
+      if (!q.multi) st.picked = on ? [val] : [];
+      else {
+        st.picked = st.picked.filter(function (v) { return v !== val; });
+        if (on) st.picked.push(val);
+      }
+    }
+
+    (q.options || []).forEach(function (o, oi) {
+      var detail = typeof o === 'string' ? '' : o.detail;
+      var input = el('input', { type: type, name: q.id });
+      input.checked = st.picked.indexOf(oi) >= 0;
+      input.addEventListener('change', function () { setPicked(oi, input.checked); changed(); });
+      opts.appendChild(el('label', { class: 'opt' }, input,
+        el('span', { class: 'ot' },
+          el('span', { class: 'ol', text: optionLabel(o) }),
+          oi === q.recommended ? el('span', { class: 'rec', text: 'Recommended' }) : null,
+          detail ? el('span', { class: 'od', text: detail }) : null)));
+    });
+
+    var otherInput = el('input', { type: type, name: q.id });
+    otherInput.checked = st.picked.indexOf(OTHER) >= 0;
+    var otherText = el('input', { type: 'text', placeholder: 'Type your own answer', 'aria-label': 'Your own answer to ' + q.id });
+    otherText.value = st.other || '';
+    otherInput.addEventListener('change', function () { setPicked(OTHER, otherInput.checked); changed(); if (otherInput.checked) otherText.focus(); });
+    otherText.addEventListener('input', function () {
+      st.other = otherText.value;
+      if (otherText.value && !otherInput.checked) { otherInput.checked = true; setPicked(OTHER, true); }
+      changed();
+    });
+    opts.appendChild(el('label', { class: 'opt' }, otherInput,
+      el('span', { class: 'ot' }, el('span', { class: 'ol', text: 'Something else' }), otherText)));
+    card.appendChild(opts);
+
+    var note = el('textarea', { rows: '1', id: 'note-' + q.id, placeholder: 'Anything Claude should know about this answer' });
+    note.value = st.note || '';
+    note.addEventListener('input', function () { st.note = note.value; changed(); });
+    card.appendChild(el('div', { class: 'note' }, el('label', { for: 'note-' + q.id, text: 'Note, if you have one' }), note));
+
+    cards[q.id] = { card: card, tag: stateTag };
+    tree.appendChild(card);
+  });
+
+  var out = el('textarea', { readonly: 'readonly', 'aria-label': 'Your answers, ready to paste' });
+  var sheet = el('section', { class: 'sheet', hidden: 'hidden' },
+    el('h2', { text: 'Paste this back to Claude' }),
+    el('p', { text: 'This page cannot send anything on its own. When Claude writes the next round, this tab loads it without a refresh.' }),
+    out);
+  app.appendChild(sheet);
+
+  function unseen() { return D.questions.filter(function (q) { return !answered(state[q.id]); }); }
+  var notice = '';
+
+  function refresh() {
+    D.questions.forEach(function (q) {
+      var seen = answered(state[q.id]);
+      cards[q.id].card.classList.toggle('seen', seen);
+      cards[q.id].tag.textContent = seen ? 'Answered' : 'To answer';
+    });
+    var n = unseen().length;
+    nextBtn.hidden = n === 0;
+    nextBtn.textContent = n + ' to answer';
+    fill.style.width = ((total - n) / total * 100) + '%';
+    msg.innerHTML = '';
+    if (notice) msg.textContent = notice;
+    else { msg.appendChild(el('b', { text: (total - n) + ' of ' + total })); msg.appendChild(document.createTextNode(' answered')); }
+    if (!sheet.hidden) out.value = response();
+  }
+
+  function response() {
+    var lines = ['Grill answers: ' + (D.topic || '') + ' (round ' + round + ')', ''];
+    D.questions.forEach(function (q, i) {
+      var st = state[q.id];
+      var picks = st.picked.map(function (v) {
+        if (v === OTHER) return 'Something else: ' + (st.other || '(left blank)');
+        return optionLabel((q.options || [])[v]) + (v === q.recommended ? ' (recommended)' : '');
+      });
+      lines.push(q.id + '. ' + (q.question || ''));
+      var rec = (q.options || [])[q.recommended];
+      lines.push('   -> ' + (answered(st) ? picks.join('; ') : '(no answer)' + (rec ? ' [recommended was: ' + optionLabel(rec) + ']' : '')));
+      if (st.note) lines.push('   note: ' + st.note.replace(/\s*\n\s*/g, ' '));
+      if (i < D.questions.length - 1) lines.push('');
+    });
+    return lines.join('\n');
+  }
+
+  nextBtn.addEventListener('click', function () {
+    var q = unseen()[0];
+    if (!q) return;
+    var card = cards[q.id].card;
+    card.scrollIntoView({ block: 'center' });
+    var first = card.querySelector('input');
+    if (first) first.focus({ preventScroll: true });
+  });
+
+  copyBtn.addEventListener('click', function () {
+    var text = response();
+    var first = sheet.hidden;
+    sheet.hidden = false;
+    out.value = text;
+    if (first) sheet.classList.add('show');
+    sheet.scrollIntoView({ block: 'nearest' });
+    var settled = false;
+    function done(ok) {
+      if (settled) return;
+      settled = true;
+      notice = ok ? 'Copied. Paste it into Claude. This tab loads the next round by itself.' : 'Could not copy. Select the text below and copy it.';
+      refresh();
+      if (!ok) { out.focus(); out.select(); }
+    }
+    setTimeout(function () { done(false); }, 1200);
+    function fallback() {
+      out.focus(); out.select();
+      var ok = false;
+      try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+      done(ok);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(function () { done(true); }, fallback);
+    else fallback();
+  });
+
+  tree.addEventListener('input', function () { if (notice) { notice = ''; refresh(); } });
+  refresh();
+})();
+</script>
+</body>
+</html>
