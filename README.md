@@ -11,7 +11,7 @@ claude plugin marketplace add a-pavithraa/build-compass
 claude plugin install build-compass@a-pavithraa
 ```
 
-Then, once, inside Claude Code: `/build-compass:setup-project-map`
+Then, once, inside Claude Code: `/build-compass:setup`
 
 The picture above is a real map, drawn by this plugin for a made-up booking app.
 
@@ -34,7 +34,7 @@ Four pieces. You only ever type one of them.
 | [`project-map`](./agents/project-map.md) | Agent | Reads the project and writes the map's data. A ready-made page draws it. | When Claude sends it, in the background. |
 | [`mapping-progress`](./skills/mapping-progress/SKILL.md) | Skill | Tells Claude when to update the map and how to answer from it. | On its own: before long runs, after milestones, on "where are we?". |
 | [`grill-page`](./skills/grill-page/SKILL.md) | Skill | Lets you answer Claude's questions about a plan by clicking in a page, in place of typing. | When you say "grill me in a page". |
-| [`setup-project-map`](./skills/setup-project-map/SKILL.md) | Skill | One-time setup: your map style, and a one-line pointer in your `CLAUDE.md`. | Only when you type it. |
+| [`setup`](./skills/setup/SKILL.md) | Skill | One-time setup: checks for Node and the companion skills, saves your map style, adds a one-line pointer to your `CLAUDE.md`, and offers a first map. Safe to run again. | Only when you type it. |
 
 The map and the grilling page are separate tools that share a plugin because they are two ends of the same job: deciding what to build, then seeing how the build is going.
 
@@ -146,7 +146,7 @@ cp map/map.html map/check.mjs map/gather.mjs map/plan-extract.mjs ~/.claude/proj
 cp -r skills/mapping-progress skills/grill-page ~/.claude/skills/
 ```
 
-Then add the block in [`skills/setup-project-map/claude-md-block.md`](./skills/setup-project-map/claude-md-block.md) to your `CLAUDE.md`. Do not install both ways, or you will have everything twice.
+Then add the block in [`skills/setup/claude-md-block.md`](./skills/setup/claude-md-block.md) to your `CLAUDE.md`. Do not install both ways, or you will have everything twice.
 
 ## Credits
 
