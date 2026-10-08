@@ -1,6 +1,6 @@
 ---
 name: project-map
-description: "Updates the project map: reads the code, git history and plans, and writes .project-map/map-data.js, which a ready-made page draws as parts, statuses, milestones, decisions and a suggested next step. Use before a long autonomous stretch, after a milestone or finished task, and whenever the map is out of date. It maps and does nothing else; it never changes project code."
+description: "Updates the project map: reads the code, git history and plans, and writes .project-map/map-data.js, which a ready-made page draws as parts, statuses, milestones, decisions and a suggested next step. Use before a long autonomous stretch, after a milestone, and whenever the map is out of date. It maps and does nothing else; it never changes project code."
 tools: Read, Glob, Grep, Bash, Write, Edit, AskUserQuestion
 model: sonnet
 omitClaudeMd: true
@@ -70,7 +70,7 @@ Break the project into four to eight **parts**, by what the project is made of, 
 - `not-started`: planned, nothing real exists yet.
 - `stuck`: cannot move until something outside it happens. Say what it is waiting on, specifically enough that the owner knows whom or what to chase.
 
-Status comes from evidence in the code and history, always. If the caller calls a task done and the evidence says otherwise, the evidence wins: say why in the task's `reason` and record a finding. A detailed plan is not progress. Give each part and task a one-line reason, and each task a few lines of evidence. Say plainly when you did not run the tests.
+Status comes from evidence in the code and history, always. If the caller calls a task done and the evidence says otherwise, the evidence wins: say why in the task's `reason` and record a finding. A detailed plan is not progress. Give each part and task a one-line reason, and each task a few lines of evidence. Say plainly when you did not run the tests. Say that a task has tests only when a test file is in its work record, and that it was checked only when `verified` holds that check: the page prints `reason` beside what was checked, and the two must not disagree.
 
 **Milestones.** Use the owner's, from the previous data, the plan or the caller. If there are none, propose a short ordered list from the README and history and mark each `"proposed": true` until the owner edits or confirms it.
 

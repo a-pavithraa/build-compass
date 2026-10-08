@@ -1,6 +1,6 @@
 ---
 name: mapping-progress
-description: Keep a project map current and answer from it. Use before a long autonomous stretch of work, after a milestone or a finished task, when a plan or grilling session has just been answered, or when the user asks where the project stands.
+description: Keep a project map current and answer from it. Use before a long autonomous stretch of work, after a milestone, when a plan or grilling session has just been answered, or when the user asks where the project stands. The user's CLAUDE.md can ask for more or fewer updates.
 ---
 
 # Mapping progress

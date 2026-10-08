@@ -1,5 +1,13 @@
 # build-compass
 
+## 0.3.2
+
+- **Milestone headers no longer overlap.** A milestone with one or two tasks got a column too narrow for its name, tag and tally, so they ran into the next column. A header is now two rows, the name and then the tag and tally, and every column is wide enough for the second row. The page no longer scrolls sideways on a phone.
+- **Done, not checked.** A done task with no recorded check says so on its tile and in its details, and the details flag the missing check instead of leaving it as body text. The agent may say a task has tests only when a test file is in its work record.
+- **The details work from the keyboard.** Opening them moves focus into them, they are a dialog named by the item, and closing returns focus to what opened them. Task tiles show the focus ring, which a not-started or selected tile used to hide.
+- **The details' status row lines up.** The part and milestone labels sit on the same line as their chips.
+- **Updates default to milestones everywhere.** The descriptions of the skill and the agent said "after a milestone or a finished task", which could trigger an update after every task for someone who chose milestones only.
+
 ## 0.3.1
 
 - **An update writes only what changed.** The agent used to read the whole previous data file and write the whole new one, and that file grows with every task. `map/digest.mjs` now prints a short digest of the previous data, the agent writes a patch, and `map/merge.mjs` applies it, runs the same checks as `check.mjs`, and replaces the data only when they pass. Parts of the data the update does not touch, your own edits included, are left as they were. `merge.mjs` also files the previous data under `history/` and keeps the newest twenty.

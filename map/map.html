@@ -95,10 +95,11 @@ svg.i .fill{fill:currentColor;stroke:none}
 /* The plan drawn as a strip of tasks, grouped by milestone. */
 .sheet{display:flex;flex-wrap:wrap;gap:22px 28px;padding-bottom:22px}
 .sheet > div{min-width:0}
-.ms-head{display:flex;align-items:baseline;gap:10px;width:100%;padding:0 2px 8px;border-bottom:1px solid var(--rule-strong);margin-bottom:10px}
-.ms-head b{font-family:var(--head);font-size:16px;font-weight:600;font-stretch:87%}
+.ms-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 10px;width:100%;padding:0 2px 8px;border-bottom:1px solid var(--rule-strong);margin-bottom:10px}
+.ms-head b{flex:1 1 100%;font-family:var(--head);font-size:16px;font-weight:600;font-stretch:87%;text-wrap:balance}
 .ms-head .tag{color:var(--ink-3);font-size:13px;white-space:nowrap}
-.ms-head .tally{margin-left:auto;color:var(--ink-2);font-size:13px;white-space:nowrap}
+.ms-head .tally{color:var(--ink-2);font-size:13px;white-space:nowrap}
+.ms-head .tag + .tally{margin-left:auto}
 .ms-head:hover b{text-decoration:underline;text-underline-offset:4px}
 .ms-head.is-selected{border-bottom-color:var(--accent)}
 .ms-head.is-selected b{color:var(--accent-ink)}
@@ -115,6 +116,7 @@ svg.i .fill{fill:currentColor;stroke:none}
 .slot.not-started:hover{outline-color:var(--ink-3)}
 .slot.stuck{background:repeating-linear-gradient(135deg,var(--stuck-t) 0 7px,transparent 7px 14px),var(--surface)}
 .slot.is-selected,.slot.is-selected:hover{box-shadow:inset 0 0 0 2px var(--accent),0 6px 18px -8px var(--accent);outline:0}
+.slot:focus-visible,.slot.is-selected:focus-visible,.slot.is-selected:hover:focus-visible{outline:2px solid var(--accent-ink);outline-offset:2px}
 .dim{opacity:.28}
 
 .g{display:inline-flex;vertical-align:-3px}
@@ -196,6 +198,7 @@ table.grid td{padding:8px 10px;border-top:1px solid var(--rule);vertical-align:t
   transform:translateX(24px);opacity:0;visibility:hidden;transition:transform .26s var(--ease),opacity .2s var(--ease),visibility 0s .26s}
 .drawer.open{transform:none;opacity:1;visibility:visible;transition:transform .26s var(--ease),opacity .2s var(--ease)}
 .drawer.instant{transition:none}
+.drawer:focus{outline:0}
 .dhead{display:flex;align-items:flex-start;gap:12px}
 .dhead .what{color:var(--ink-3);font-size:13px}
 .dhead h2{font-size:25px;line-height:1.15;margin-top:2px}
@@ -203,6 +206,7 @@ table.grid td{padding:8px 10px;border-top:1px solid var(--rule);vertical-align:t
 .x:hover{background:var(--raised);color:var(--ink)}
 .dstat{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;margin-top:10px;font-size:13.5px;color:var(--ink-2)}
 .dstat .stat{font-weight:600}
+.dstat > span:not(.stat){display:inline-flex;align-items:center;gap:6px}
 .drawer blockquote{margin:14px 0 0;padding:10px 12px;background:var(--ground);border-radius:7px;color:var(--ink);font-size:14px}
 .drawer blockquote cite{display:block;font-style:normal;color:var(--ink-3);font-size:12.5px;margin-top:3px}
 .drawer h3{font-size:16px;margin-top:22px;padding-top:14px;border-top:1px solid var(--rule)}
@@ -217,6 +221,8 @@ table.grid td{padding:8px 10px;border-top:1px solid var(--rule);vertical-align:t
 .wait{display:flex;gap:10px;margin-top:14px;padding:11px 12px;border-radius:7px;background:var(--stuck-t);font-size:14px}
 .wait svg{color:var(--stuck);margin-top:3px}
 .wait b{display:block}
+.wait.unchecked{background:var(--progress-t)}
+.wait.unchecked svg{color:var(--progress)}
 .rec{margin-top:12px}
 .rec + .rec{margin-top:18px;padding-top:16px;border-top:1px dashed var(--rule-strong)}
 .state{display:flex;align-items:flex-start;gap:9px;padding:9px 12px;border-radius:7px;font-size:14px}
@@ -274,7 +280,7 @@ ul.opts small{color:var(--ink-3)}
 </head>
 <body>
 <div class="page" id="page"></div>
-<aside class="drawer" id="drawer" aria-label="Details" tabindex="-1"></aside>
+<aside class="drawer" id="drawer" role="dialog" aria-label="Details" tabindex="-1"></aside>
 <noscript><p style="padding:40px">This map needs JavaScript to draw itself. Its data is in map-data.js, next to this file.</p></noscript>
 
 <script>
@@ -403,13 +409,15 @@ ul.opts small{color:var(--ink-3)}
       }[s] || '<circle cx="8" cy="8" r="6.1"/>';
       return '<span class="g '+e(s)+'"><svg class="i" viewBox="0 0 16 16" aria-hidden="true">'+inner+'</svg></span>';
     }
-    function stat(s){return '<span class="stat">'+glyph(s)+LABEL[s]+'</span>';}
+    /* Done says the work exists. Whether it works is a separate fact, so a done task says when no check backs it. */
+    function taskLabel(t){return t.status==='done' && !arr(t.verified).length ? 'Done, not checked' : LABEL[t.status];}
+    function stat(s, label){return '<span class="stat">'+glyph(s)+(label||LABEL[s])+'</span>';}
     function shown(o){return o.label || o.id;}
     function ref(id){
       var it = byId[id]; if(!it) return '<span class="mono">'+e(id)+'</span>';
       var g = it.o.status ? glyph(it.o.status) : '';
       var name = it.o.name || it.o.short || it.o.question || '';
-      return '<button class="ref" data-ref="'+e(id)+'" aria-label="Open '+e(shown(it.o))+': '+e(name)+(it.o.status?', '+LABEL[it.o.status].toLowerCase():'')+'">'+g+e(shown(it.o))+'</button>';
+      return '<button class="ref" data-ref="'+e(id)+'" aria-label="Open '+e(shown(it.o))+': '+e(name)+(it.o.status?', '+(it.type==='task'?taskLabel(it.o):LABEL[it.o.status]).toLowerCase():'')+'">'+g+e(shown(it.o))+'</button>';
     }
     function refs(a){a=arr(a);return a.length?a.map(ref).join(''):'<span>nothing</span>';}
     function task(id){return (byId[id]&&byId[id].type==='task')?byId[id].o:{id:id,name:id,status:'not-started',work:[]};}
@@ -428,17 +436,19 @@ ul.opts small{color:var(--ink-3)}
       if(state.filter==='left') return arr(ids).some(function(i){return left.indexOf(i)>-1;});
       return status===state.filter;
     }
+    /* Wide enough for a milestone's tag and tally to share a line under its name. */
+    var MS_MIN = 230;
     function strip(name, tag, id, ids){
       var done = ids.filter(isDone).length;
       var head = '<b>'+e(name)+'</b>'+(tag?'<span class="tag">'+tag+'</span>':'')+'<span class="tally num">'+done+' of '+ids.length+' done</span>';
-      var h = '<div style="flex:'+Math.max(ids.length,1)+' 1 '+Math.min(Math.max(ids.length,1)*150,640)+'px">'
+      var h = '<div style="flex:'+Math.max(ids.length,1)+' 1 '+Math.min(Math.max(ids.length*150,MS_MIN),640)+'px">'
         + (id?'<button class="ms-head" data-ref="'+e(id)+'">'+head+'</button>':'<div class="ms-head">'+head+'</div>')
         + '<div class="slots">';
       ids.forEach(function(tid){
         var t = task(tid);
         h += '<button class="slot '+t.status+(matches(t.status,[tid])?'':' dim')+'" data-ref="'+e(tid)+'">'
           + '<span class="sid"><span>'+e(shown(t))+'</span>'+glyph(t.status)+'</span>'
-          + '<span class="sname">'+e(t.name)+'</span><span class="sstat">'+LABEL[t.status]+'</span></button>';
+          + '<span class="sname">'+e(t.name)+'</span><span class="sstat">'+taskLabel(t)+'</span></button>';
       });
       return h + '</div></div>';
     }
@@ -622,7 +632,7 @@ ul.opts small{color:var(--ink-3)}
       var close = '<button class="x" id="close" aria-label="Close details">'+ICON.x+'Close</button>';
       if(it.type==='task'){
         h += '<div class="dhead"><div><span class="what mono">'+e(shown(o))+'</span><h2>'+e(o.name)+'</h2></div>'+close+'</div>'
-          + '<div class="dstat">'+stat(o.status)+(o.part&&byId[o.part]?'<span>Part '+ref(o.part)+'</span>':'')+(o.milestone&&byId[o.milestone]?'<span>Milestone '+ref(o.milestone)+'</span>':'')+'</div>'
+          + '<div class="dstat">'+stat(o.status, taskLabel(o))+(o.part&&byId[o.part]?'<span>Part '+ref(o.part)+'</span>':'')+(o.milestone&&byId[o.milestone]?'<span>Milestone '+ref(o.milestone)+'</span>':'')+'</div>'
           + '<p class="t">'+e(o.reason||'')+'</p>';
         if(o.waitingOn) h += '<div class="wait">'+ICON.wait+'<span><b>Waiting on</b>'+e(o.waitingOn)+'</span></div>';
         var out = o.outcome || {};
@@ -635,8 +645,10 @@ ul.opts small{color:var(--ink-3)}
           h += '<h3>Checked</h3><ul class="ev">'+checks.map(function(c){
             return '<li>'+(c.result==='failed'?ICON.x+'<b>Failed:</b> ':ICON.ok+'<b>Passed:</b> ')+e(c.check)+(c.at?' <span class="mono">at '+e(c.at)+'</span>':'')+'</li>';
           }).join('')+'</ul>';
-        } else if(o.status==='done' || o.status==='in-progress'){
-          h += '<h3>Checked</h3><p class="t">No check is recorded for this task. Its code exists, which does not show that it works.</p>';
+        } else if(o.status==='done'){
+          h += '<h3>Checked</h3><div class="wait unchecked">'+ICON.q+'<span><b>No check is recorded for this task.</b>Its code is committed, which does not show that it works.</span></div>';
+        } else if(o.status==='in-progress'){
+          h += '<h3>Checked</h3><p class="t">No check is recorded for this task yet.</p>';
         }
         h += '<h3>What changed</h3>'+(arr(o.work).length?arr(o.work).map(record).join(''):'<p class="t">Nothing yet. No commit and no uncommitted change belongs to this task.</p>');
         h += '<h3>Where it sits</h3><dl class="kv"><dt>Needs</dt><dd>'+refs(o.needs)+'</dd><dt>Unlocks</dt><dd>'+refs(o.unlocks)+'</dd>'
@@ -666,7 +678,7 @@ ul.opts small{color:var(--ink-3)}
           + (o.proposed?'<p class="t"><b>Proposed.</b> Claude drew this milestone up from the README and the history. Edit it in map-data.js, or tell Claude it is right.</p>':'')
           + (o.source?'<p class="t">'+e(o.source)+'</p>':'')+'<h3>Items</h3>';
         ids.forEach(function(tid){var t=task(tid);
-          h += '<dl class="kv"><dt>'+ref(tid)+'</dt><dd><span class="strong">'+e(t.name)+'.</span> <span>'+LABEL[t.status]+'. '+e(t.reason||'')+'</span></dd></dl>';
+          h += '<dl class="kv"><dt>'+ref(tid)+'</dt><dd><span class="strong">'+e(t.name)+'.</span> <span>'+taskLabel(t)+'. '+e(t.reason||'')+'</span></dd></dl>';
         });
         var ds = DECS.filter(function(d){return !d.answer && arr(d.waiting).some(function(w){return ids.indexOf(w)>-1;});});
         h += '<h3>Open decisions that touch it</h3>'+(ds.length?'<dl class="kv">'+ds.map(function(d){return '<dt>'+ref(d.id)+'</dt><dd>'+e(d.question)+'</dd>';}).join('')+'</dl>':'<p class="t">None.</p>');
@@ -701,24 +713,32 @@ ul.opts small{color:var(--ink-3)}
       return h;
     }
 
-    var drawer = document.getElementById('drawer');
+    var drawer = document.getElementById('drawer'), opener = null;
+    function fill(id){
+      drawer.innerHTML = detail(id);
+      var title = drawer.querySelector('h2');
+      if(title){ title.id = 'dtitle'; drawer.setAttribute('aria-labelledby','dtitle'); } else drawer.removeAttribute('aria-labelledby');
+    }
     function select(id, instant){
       if(!id || id===state.sel || !byId[id]){
         state.sel = null; drawer.classList.remove('open','instant');
         try{history.replaceState(null,'',location.pathname+location.search);}catch(x){}
         mark(); return;
       }
+      if(!state.sel) opener = document.activeElement;
       state.sel = id;
-      drawer.innerHTML = detail(id);
+      fill(id);
       drawer.classList.toggle('instant', !!instant);
       drawer.classList.add('open'); drawer.scrollTop = 0;
+      /* The details open beside the page, so a keyboard or screen reader has to be taken to them. */
+      drawer.focus({preventScroll:true});
       try{history.replaceState(null,'',location.pathname+location.search+'#open='+encodeURIComponent(id));}catch(x){}
       mark();
     }
-    function refreshDetail(){ var s=drawer.scrollTop; drawer.innerHTML = detail(state.sel); drawer.scrollTop=s; mark(); }
+    function refreshDetail(){ var s=drawer.scrollTop; fill(state.sel); drawer.scrollTop=s; mark(); }
     function closeDetail(){
-      var was = String(state.sel).replace(/"/g,'\\"'); select(null);
-      var back = document.querySelector('#page [data-ref="'+was+'"]'); if(back) back.focus();
+      var was = String(state.sel).replace(/"/g,'\\"'), from = opener; opener = null; select(null);
+      var back = from && from.isConnected && from !== document.body ? from : document.querySelector('#page [data-ref="'+was+'"]'); if(back) back.focus();
     }
 
     document.addEventListener('click', function(ev){

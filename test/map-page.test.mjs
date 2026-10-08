@@ -117,7 +117,12 @@ test("a task's drawer leads with its outcome and says what was checked", async (
 
   await page.goto(`${pathToFileURL(join(dir, 'map.html')).href}#open=T2`);
   await page.reload();
-  assert.match(await drawer.textContent(), /No check is recorded for this task/);
+  const unchecked = await drawer.textContent();
+  assert.match(unchecked, /Done, not checked/);
+  assert.match(unchecked, /No check is recorded for this task\.Its code is committed/);
+  assert.equal(await drawer.locator('.wait.unchecked').count(), 1, 'the missing check is flagged, not left as body text');
+  const tiles = await page.locator('.slot .sstat').allTextContents();
+  assert.deepEqual(tiles, ['Done', 'Done, not checked'], 'a tile says when no check backs a done task');
 });
 
 test('"since you last looked" lists what moved across updates until it is marked as seen', async (t) => {
@@ -152,6 +157,77 @@ test('"since you last looked" lists what moved across updates until it is marked
   assert.equal(await page.locator('#since').count(), 0);
   await page.reload();
   assert.equal(await page.locator('#since').count(), 0, 'marked as seen stays seen');
+});
+
+test('milestone headers stay inside their own column, and the page never scrolls sideways', async (t) => {
+  const { browser, skip } = await launch();
+  if (skip) return t.skip(skip);
+  t.after(() => browser.close());
+
+  const dir = tempDir(t);
+  copyFileSync(join(MAP, 'map.html'), join(dir, 'map.html'));
+  const data = mapData(1);
+  const task = (id) => ({ id, name: `Task ${id}`, status: 'not-started', part: 'P1' });
+  const many = Array.from({ length: 9 }, (_, i) => `T${i + 1}`);
+  data.tasks = [...many, 'T10', 'T11', 'T12'].map(task);
+  data.parts[0].tasks = data.tasks.map((x) => x.id);
+  data.milestones = [
+    { id: 'M1', name: 'Customers can book a slot and pay for it', proposed: true, tasks: many },
+    { id: 'M2', name: 'Reminders are kept after the 24 hour window', proposed: true, tasks: ['T10'] },
+    { id: 'M3', name: 'Hardening', proposed: true, tasks: ['T11'] },
+  ];
+  writeData(dir, data);
+
+  for (const width of [1440, 1024, 390]) {
+    const page = await (await browser.newContext({ viewport: { width, height: 800 } })).newPage();
+    await page.goto(pathToFileURL(join(dir, 'map.html')).href);
+    const seen = await page.evaluate(() => ({
+      heads: document.querySelectorAll('.ms-head').length,
+      spills: [...document.querySelectorAll('.ms-head')].filter((head) => {
+        const column = head.parentElement.getBoundingClientRect();
+        return [...head.children].some((child) => child.getBoundingClientRect().right > column.right + 1);
+      }).map((head) => head.textContent),
+      sideways: document.documentElement.scrollWidth - window.innerWidth,
+    }));
+    assert.equal(seen.heads, 4, 'three milestones and the tasks in none');
+    assert.deepEqual(seen.spills, [], `at ${width}px a milestone header runs past its column`);
+    assert.ok(seen.sideways <= 0, `at ${width}px the page is ${seen.sideways}px wider than the window`);
+  }
+});
+
+test('the keyboard reaches the details and comes back to where it was', async (t) => {
+  const { browser, skip } = await launch();
+  if (skip) return t.skip(skip);
+  t.after(() => browser.close());
+
+  const dir = tempDir(t);
+  copyFileSync(join(MAP, 'map.html'), join(dir, 'map.html'));
+  const data = mapData(1);
+  data.parts[0].tasks = ['T1', 'T2'];
+  data.tasks = [
+    { id: 'T1', name: 'Refuse double bookings', status: 'not-started', part: 'P1' },
+    { id: 'T2', name: 'Cancel a booking', status: 'done', part: 'P1' },
+  ];
+  writeData(dir, data);
+  const page = await (await browser.newContext()).newPage();
+  await page.goto(pathToFileURL(join(dir, 'map.html')).href);
+
+  const focused = () => page.evaluate(() => { const el = document.activeElement; return el.id || el.getAttribute('data-ref') || el.tagName; });
+  for (let i = 0; i < 40 && !(await page.evaluate(() => document.activeElement.matches('.slot[data-ref="T1"]'))); i++) await page.keyboard.press('Tab');
+  assert.equal(await focused(), 'T1', 'Tab reaches the first task');
+  const ring = await page.evaluate(() => { const cs = getComputedStyle(document.activeElement); return `${cs.outlineStyle} ${cs.outlineWidth}`; });
+  assert.equal(ring, 'solid 2px', 'a not-started task shows the focus ring, not its dashed edge');
+
+  await page.keyboard.press('Enter');
+  assert.equal(await focused(), 'drawer', 'opening the details moves focus into them');
+  const dialog = page.getByRole('dialog', { name: 'Refuse double bookings' });
+  assert.equal(await dialog.count(), 1, 'the details are a dialog named by the task');
+
+  await page.keyboard.press('Tab');
+  assert.equal(await focused(), 'close', 'the next stop is inside the details');
+  await page.keyboard.press('Escape');
+  assert.equal(await focused(), 'T1', 'closing returns to the task that opened them');
+  assert.equal(await page.locator('.slot[data-ref="T1"].is-selected').count(), 0);
 });
 
 test('the page works when the browser blocks storage', async (t) => {
