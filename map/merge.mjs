@@ -17,6 +17,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync, copyFileSync, renam
 import { execFileSync } from 'node:child_process';
 import { dirname, resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { readSaved, attach } from './checks.mjs';
 
 const mapDir = resolve(process.argv[2] || join(process.cwd(), '.project-map'));
 const dataFile = join(mapDir, 'map-data.js');
@@ -136,6 +137,9 @@ for (let n = 2; existsSync(join(historyDir, historyName)); n++) historyName = `m
 
 const version = previousVersion + 1;
 data.update = { ...data.update, version, first: false, previous: `history/${historyName}` };
+
+// The results of the owner's check commands, when they ran on what this update read.
+attach(data, readSaved(mapDir));
 
 writeFileSync(nextFile, `window.PROJECT_MAP = ${JSON.stringify(data, null, 2)};\n`);
 let checked;

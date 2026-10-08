@@ -87,7 +87,8 @@ Source: [anthropics/claude-plugins-community](https://github.com/anthropics/clau
 
 - **Top of the page:** how many items are left before the next milestone, one suggested next step with its reason, and which parts changed since the last update.
 - **Since you last looked:** every status that moved and every decision answered since you last pressed **Mark as seen**. It is remembered in your browser, so it covers all the updates in between.
-- **Tasks:** a done or in-progress task opens with before, now and one way to try it, then the checks Claude ran on it, then the commits and files. A task with no recorded check says so.
+- **Tasks:** a done or in-progress task opens with before, now and one way to try it, then its checks, then the commits and files. A task with no recorded check says so, shows the code it runs through from where it starts, and asks what you saw when you tried it. Your result joins the answers you copy to Claude.
+- **Checks run:** when you have listed check commands, each one's latest result, passed or failed, with its last line of output.
 - **Parts:** four to eight main parts, each with one status and a one-line reason. Stuck parts say what they are waiting on.
 - **Milestones:** yours if you have named them. If not, the agent reads the README and commit history and proposes a first version, marked as proposed until you edit it.
 - **Decisions:** anything that needs your call, with the options and the default.
@@ -127,13 +128,14 @@ It reads the code, git history, the README and docs, plans, and GitHub issues an
 
 It does not load your `CLAUDE.md`, so a long one adds nothing to the cost of an update.
 
-It writes to `.project-map/` in the project, adds that folder to `.gitignore`, and keeps the last 20 versions of the data in `.project-map/history/`. On an update it writes only what changed, and a script merges that into the data, so what an update does not touch stays as it was. Commits, file lists and line counts come from a script that reads git, not from the model, and every hash and path on the map is checked against git before the map is shown. It does not change project code, commit, or run builds and tests.
+It writes to `.project-map/` in the project, adds that folder to `.gitignore`, and keeps the last 20 versions of the data in `.project-map/history/`. On an update it writes only what changed, and a script merges that into the data, so what an update does not touch stays as it was. Commits, file lists and line counts come from a script that reads git, not from the model, and every hash and path on the map is checked against git before the map is shown. It does not change project code or commit, and it does not run builds or tests of its own choosing. If you list check commands in `.project-map/checks.json`, it runs those and only those.
 
 That boundary is an instruction in the agent's prompt, not a sandbox. The agent has shell access so it can read git history. If you need a hard guarantee, add a permission rule or hook of your own.
 
 ## Limits
 
-- Statuses come from what the agent reads: commits, code, issues, plans. It does not run your tests, so "done" means the evidence says so. The checks shown on a task are the ones Claude said it ran; the agent records them and does not repeat them.
+- Statuses come from what the agent reads: commits, code, issues, plans. "Done" means the evidence says so, and a done task with no recorded check says "Done, not checked". A check gets recorded in three ways: Claude reports one it ran, you check a task by hand and say what you saw, or a command you listed in `.project-map/checks.json` passes.
+- A passing check command is recorded on every task with a file under the folder it covers. That shows the suite passed with the task's code in place, not that someone verified that task.
 - The map is a snapshot. On a fast-moving branch it can be a task behind by the time it is written. A new session is told when the map is out of date; a running one is not.
 - `.grill/` and `.project-map/` are ignored by git, so the decisions file and the map stay on your machine. Copy `decisions.md` into your docs if the team needs it.
 - Every project gets the same page. The layout does not adapt to the project beyond an added table or list.

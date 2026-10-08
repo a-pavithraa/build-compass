@@ -230,6 +230,47 @@ test('the keyboard reaches the details and comes back to where it was', async (t
   assert.equal(await page.locator('.slot[data-ref="T1"].is-selected').count(), 0);
 });
 
+test('a hand check shows the code path, and its result joins the answers', async (t) => {
+  const { browser, skip } = await launch();
+  if (skip) return t.skip(skip);
+  t.after(() => browser.close());
+
+  const dir = tempDir(t);
+  copyFileSync(join(MAP, 'map.html'), join(dir, 'map.html'));
+  const data = mapData(1);
+  data.update.uncommittedWork = true;
+  data.parts[0].tasks = ['T1', 'T2'];
+  data.tasks = [
+    { id: 'T1', name: 'Refuse double bookings', status: 'done', part: 'P1',
+      calls: [{ fn: 'POST /bookings', at: 'src/routes.js:14', depth: 0 }, { fn: 'confirmBooking()', at: 'src/bookings.js:22', depth: 1 }] },
+    { id: 'T2', name: 'Cancel a booking', status: 'done', part: 'P1', verified: [{ check: 'npm test: 12 passed', result: 'passed', at: 'abc1234' }] },
+  ];
+  data.checks = [{ name: 'Server tests', result: 'failed', summary: '1 failed', at: 'abc1234' }];
+  writeData(dir, data);
+  const page = await (await browser.newContext()).newPage();
+  await page.goto(`${pathToFileURL(join(dir, 'map.html')).href}#open=T1`);
+  const drawer = page.locator('#drawer');
+  assert.deepEqual(await drawer.locator('.call').allTextContents(), ['POST /bookingsroutes.js:14', 'confirmBooking()bookings.js:22']);
+  assert.match(await page.locator('#page').textContent(), /Failed: Server tests\. 1 failed at abc1234/, 'a failing suite is shown for the whole project');
+
+  await drawer.getByLabel('It worked').check();
+  const block = await page.locator('#line').textContent();
+  assert.ok(block.endsWith('Checked by hand at abc1234 plus uncommitted work:\nT1. Refuse double bookings\n   -> passed'), block);
+  assert.match(await page.locator('#answers .msg').first().textContent(), /1 task checked by hand\./);
+  await page.reload();
+  assert.ok(await drawer.getByLabel('It worked').isChecked(), 'the result survives a reload');
+
+  await page.goto(`${pathToFileURL(join(dir, 'map.html')).href}#open=T2`);
+  await page.reload();
+  assert.equal(await drawer.getByLabel('It worked').count(), 0, 'a task with a recorded check is not asked for one');
+
+  data.tasks[0].verified = [{ check: 'Checked by hand by the owner', result: 'passed', at: 'abc1234' }];
+  data.update.version = 2;
+  writeData(dir, data);
+  await page.waitForEvent('load', { timeout: 30000 });
+  assert.equal(await page.locator('#answers').count(), 0, 'a result the map has recorded leaves the answers');
+});
+
 test('the page works when the browser blocks storage', async (t) => {
   const { browser, skip } = await launch();
   if (skip) return t.skip(skip);

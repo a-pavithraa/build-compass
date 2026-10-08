@@ -14,6 +14,7 @@ End with a report of what works, one line per capability, each **ready** or **un
 - **Note at session start when the map is out of date**: needs Node.
 - **Grilling in a page**: needs the `grilling` skill.
 - **Maps built from plans**: needs the `html-plan` skill.
+- **Checks the map runs itself**: needs Node and a list of commands in `.project-map/checks.json`.
 
 Then list what setup changed, and what it skipped.
 
@@ -31,4 +32,13 @@ Then list what setup changed, and what it skipped.
    - If one exists, say where and which frequency it sets, and offer to change the frequency.
    - Otherwise ask two things: how often, from the three blocks in [claude-md-block.md](claude-md-block.md), with what each costs; and where, `~/.claude/CLAUDE.md` (every project) or the project's `CLAUDE.md` (this one only). Add the chosen block only on a yes, at the end of the chosen file. Skipping is a valid answer.
 
-5. **Offer a first map.** Check that the current folder is a git repository (`git rev-parse --is-inside-work-tree`) with at least one commit or some source files. If it is not a git repository, say the map needs git history to judge progress, and skip this step. Otherwise offer to draw the first map. On a yes, dispatch the `project-map` agent in the background with the project root, tell the user the map will be at `.project-map/map.html` in about a minute, and carry on. When the agent reports, give the user the path and the suggested next step.
+5. **Offer the check commands.** With a list of commands in `.project-map/checks.json`, the map agent runs them on each update, when the code has changed since they last ran, and the map shows which tasks they cover. Without one, every task says no check is recorded until someone reports a check.
+   - If the list exists, show it and offer to change it.
+   - Otherwise look for how this project is tested: test scripts in `package.json`, a build file, a Makefile, in the root and one folder down. Propose a list, each with a `name`, the command as `run`, the folder as `in`, and `timeoutSeconds` if it needs more than 300. Leave out anything that reaches a real service, costs money or needs secrets this machine may not have, and say that you left it out.
+   - Write the list only on a yes, after checking that `.project-map/` is in `.gitignore`: a list that git tracks is refused. This file is the one thing in `.project-map/` that is yours and the user's to write. Skipping is a valid answer.
+
+   ```json
+   { "checks": [ { "name": "Server tests", "run": "npm test", "in": "server", "timeoutSeconds": 300 } ] }
+   ```
+
+6. **Offer a first map.** Check that the current folder is a git repository (`git rev-parse --is-inside-work-tree`) with at least one commit or some source files. If it is not a git repository, say the map needs git history to judge progress, and skip this step. Otherwise offer to draw the first map. On a yes, dispatch the `project-map` agent in the background with the project root, tell the user the map will be at `.project-map/map.html` in about a minute, and carry on. When the agent reports, give the user the path and the suggested next step.

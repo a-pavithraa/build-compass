@@ -118,6 +118,7 @@ if (data.plan && data.plan.approval) lines.push(`Plan ${data.plan.label || data.
 for (const t of list(data.tasks).filter((x) => list(x.verified).some((v) => v.result === 'failed'))) {
   lines.push(`Failing check: ${t.label ? `${t.label} ` : ''}${t.name}: ${list(t.verified).find((v) => v.result === 'failed').check}.`);
 }
+for (const c of list(data.checks).filter((x) => x.result === 'failed')) lines.push(`Failing check: ${c.name}: ${c.summary || 'failed'} (at ${c.at}).`);
 const unchecked = list(data.tasks).filter((x) => x.status === 'done' && !list(x.verified).length).length;
 if (unchecked) lines.push(`${unchecked} done task${unchecked === 1 ? ' has' : 's have'} no recorded check.`);
 const findings = list(data.findings).length;

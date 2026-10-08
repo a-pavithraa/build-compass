@@ -87,6 +87,10 @@ for (const task of list(data.tasks)) {
     if (!['passed', 'failed'].includes(v.result)) problems.push(`${who}: verified.result must be "passed" or "failed"`);
   }
   if (task.status === 'done' && list(task.verified).some((v) => v.result === 'failed')) problems.push(`${who} is done but a check on it failed`);
+  for (const call of list(task.calls)) {
+    if (!call.fn) problems.push(`${who}: a call has no fn`);
+    if (!/^[^:]+:\d+$/.test(call.at || '')) problems.push(`${who}: a call's "at" must be a file and a line, such as src/a.js:12`);
+  }
   if (task.outcome && ['before', 'now', 'tryIt'].some((k) => task.outcome[k] !== undefined && typeof task.outcome[k] !== 'string')) problems.push(`${who}: outcome.before, now and tryIt must be text`);
 }
 for (const milestone of list(data.milestones)) {
@@ -103,6 +107,10 @@ for (const decision of list(data.decisions)) {
 if (data.plan) {
   if (!data.plan.file) problems.push('plan.file is missing');
   if (data.plan.approval && !['approved', 'awaiting'].includes(data.plan.approval)) problems.push('plan.approval must be "approved" or "awaiting"');
+}
+for (const c of list(data.checks)) {
+  if (!c.name) problems.push('a check has no name');
+  if (!['passed', 'failed'].includes(c.result)) problems.push(`check ${c.name}: result must be "passed" or "failed"`);
 }
 for (const finding of list(data.findings)) refs(`finding "${finding.title}"`, 'refs', finding.refs);
 for (const commit of list(data.commits)) if (commit.task) refs(`commit ${commit.hash || '(uncommitted)'}`, 'task', [commit.task], 'task');
@@ -151,6 +159,20 @@ if (repoRoot) {
     for (const f of list(work.files)) {
       if (!f.path || f.kind === 'deleted' || onDisk(f.path, work)) continue;
       if (!list(work.commits).some((commit) => commit.hash && exists(`${commit.hash}:${f.path}`))) problems.push(`task ${task.id}: file "${f.path}" is neither on disk${work.worktree ? ` in ${work.worktree}` : ''} nor in the work record's commits`);
+    }
+  }
+  // A call must be where the map says it is: its name has to appear within a few lines of that line.
+  const NEAR = 5;
+  for (const task of list(data.tasks)) {
+    for (const call of list(task.calls)) {
+      const at = /^([^:]+):(\d+)$/.exec(call.at || '');
+      if (!at || !call.fn) continue;
+      const name = (String(call.fn).match(/[\w$./-]{3,}/g) || []).sort((a, b) => b.length - a.length)[0];
+      let lines = null;
+      try { lines = readFileSync(join(repoRoot, at[1]), 'utf8').split('\n'); } catch { /* reported below */ }
+      if (!lines) problems.push(`task ${task.id}: call "${call.fn}" is at ${call.at}, and that file is not on disk`);
+      else if (+at[2] > lines.length) problems.push(`task ${task.id}: call "${call.fn}" is at ${call.at}, and that file has ${lines.length} lines`);
+      else if (name && !lines.slice(Math.max(0, +at[2] - 1 - NEAR), +at[2] + NEAR).join('\n').includes(name)) problems.push(`task ${task.id}: call "${call.fn}" is not within ${NEAR} lines of ${call.at}`);
     }
   }
   for (const commit of list(data.commits)) if (commit.hash && !exists(`${commit.hash}^{commit}`)) problems.push(`commits: "${commit.hash}" is not in this repository`);

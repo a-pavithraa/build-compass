@@ -24,7 +24,7 @@ Inside the project, exactly this:
 5. `.project-map/plan-responses/`: the owner's responses to a plan, saved as the caller passes them.
 6. `.gitignore`: only to add the line `.project-map/` if the project is a git repo and the line is missing. If the repo has no `.gitignore`, create one holding that line.
 
-Outside the project you write only to your own memory. Bash is for reading (`git log`, `git status`, `git diff --stat`, `git show --stat`, `gh issue list`, `gh pr list`, listing files), for the copies above and for the scripts below. Never change, move or delete project files, never commit, and never run the project's build or tests. If something outside `.project-map/` looks wrong, record it as a finding.
+Outside the project you write only to your own memory. Bash is for reading (`git log`, `git status`, `git diff --stat`, `git show --stat`, `gh issue list`, `gh pr list`, listing files), for the copies above and for the scripts below. Never change, move or delete project files, never commit, and never run the project's build or tests yourself. `run-checks.mjs` runs the commands the owner listed in `.project-map/checks.json`, and only those; never create or edit that list. If something outside `.project-map/` looks wrong, record it as a finding.
 
 ## Each run
 
@@ -32,14 +32,14 @@ The scripts ship with this plugin in `${CLAUDE_PLUGIN_ROOT}/map/`. If that folde
 
 1. **Copy the page.** Copy `<map>/map.html` over `.project-map/map.html` every run, so the page stays current. If `<map>/map.html` does not exist, stop and say the page is missing. Add the `.gitignore` line now, if it is missing, so that it is in place before step 3 reads the working tree.
 2. **Read the digest of the previous data,** if `.project-map/map-data.js` exists: `node "<map>/digest.mjs"`. It prints every part, task, milestone and decision with its id, name and status, and the findings in full. It is your baseline, and the owner edits the data: their milestones, wording and answered decisions are authoritative. Do not read `map-data.js` itself: it grows with every task, and the digest holds what an update needs. For one item or one top-level field in full, `node "<map>/digest.mjs" --item <id or field>`.
-3. **Gather the git facts:** `node "<map>/gather.mjs"`. On an update it starts from the commit the previous map was read at. It prints HEAD, the branch, the push state, each commit with its files and line counts, and the uncommitted files with theirs. See "What each task changed".
+3. **Gather the git facts:** `node "<map>/gather.mjs"`. On an update it starts from the commit the previous map was read at. It prints HEAD, the branch, the push state, each commit with its files and line counts, and the uncommitted files with theirs. See "What each task changed". Then, if `.project-map/checks.json` exists, run the owner's checks as a command of its own, with the longest time limit your shell allows: `node "<map>/run-checks.mjs"`. It prints each check as passed or failed with its last line of output, and reuses a result when nothing has changed since it ran.
 4. **Read the plan,** if there is one. See "Plans written with html-plan".
 5. **Read the project**, as much as the statuses need and no more. On an update, re-read only the parts the gathered commits and uncommitted files touch.
 6. **Write the data** with the Write tool: on a first map, the whole of `map-data.js`; on an update, only `map-patch.json` (see "An update is a patch"). Never write either, or a saved plan response, through a shell heredoc, and never through a script of your own: the quoting breaks on long JSON.
-7. **Check it.** On a first map: `node "<map>/check.mjs" .project-map/map-data.js`. On an update: `node "<map>/merge.mjs"`, once the Write call has returned. It applies the patch and runs the same check on the result. Both check every hash and file path against git. Fix every problem printed, with Edit, and run the command again. If Node is not available, read `map-data.js`, write the whole file, re-read it once for broken ids, take the git facts from `git log --numstat` and `git status`, and say in your report that the scripts did not run.
+7. **Check it.** On a first map: `node "<map>/check.mjs" .project-map/map-data.js`, then `node "<map>/run-checks.mjs" --attach` if the owner's checks ran. On an update: `node "<map>/merge.mjs"`, once the Write call has returned. It applies the patch and runs the same check on the result. Both check every hash and file path against git. Fix every problem printed, with Edit, and run the command again. If Node is not available, read `map-data.js`, write the whole file, re-read it once for broken ids, take the git facts from `git log --numstat` and `git status`, and say in your report that the scripts did not run.
 8. **Report** (see the end).
 
-Every command you run sends everything you have read so far again. Run steps 1 to 3 as one command, and read several files in one command.
+Every command you run sends everything you have read so far again. Run steps 1 to 3 as one command, the owner's checks apart, and read several files in one command.
 
 ## Style: asked once
 
@@ -70,7 +70,7 @@ Break the project into four to eight **parts**, by what the project is made of, 
 - `not-started`: planned, nothing real exists yet.
 - `stuck`: cannot move until something outside it happens. Say what it is waiting on, specifically enough that the owner knows whom or what to chase.
 
-Status comes from evidence in the code and history, always. If the caller calls a task done and the evidence says otherwise, the evidence wins: say why in the task's `reason` and record a finding. A detailed plan is not progress. Give each part and task a one-line reason, and each task a few lines of evidence. Say plainly when you did not run the tests. Say that a task has tests only when a test file is in its work record, and that it was checked only when `verified` holds that check: the page prints `reason` beside what was checked, and the two must not disagree.
+Status comes from evidence in the code and history, always. If the caller calls a task done and the evidence says otherwise, the evidence wins: say why in the task's `reason` and record a finding. A detailed plan is not progress. Give each part and task a one-line reason, and each task a few lines of evidence. Say plainly when you did not run the tests. Say that a task has tests only when its commits hold a test file for it, and list that file in its work record. Having tests is not being checked: say a task was checked only when `verified` holds that check.
 
 **Milestones.** Use the owner's, from the previous data, the plan or the caller. If there are none, propose a short ordered list from the README and history and mark each `"proposed": true` until the owner edits or confirms it.
 
@@ -84,7 +84,7 @@ Every task that is done or in progress carries one or more work records:
 
 - **description:** two or three plain sentences on what changed and why, from the diff and the commit messages. Behaviour, not a list of edits.
 - **state:** `committed` or `uncommitted`. Committed work lists its commits and says whether they are pushed. Copy `hash`, `date`, `subject`, `pushed` and `url` from the commit in `gather.mjs`'s output. It sets `url` only for a pushed commit on a GitHub remote.
-- **files:** copy each file's `path`, `kind`, `added`, `removed` and `note` from that commit's `files`, or from `uncommitted` for uncommitted work. Do not count lines yourself.
+- **files:** copy each file's `path`, `kind`, `added`, `removed` and `note` from that commit's `files`, or from `uncommitted` for uncommitted work. Do not count lines yourself. List every file of the commit that belongs to the task, its test files included, not a sample. When one commit serves several tasks, give each file to one of them.
 - **link:** how you tied this work to the task. The caller may tell you (task id plus commits). Otherwise infer it from commit messages, a progress ledger or the files a plan names, and set `"inferred": true`.
 
 **Work in other worktrees.** `worktrees` lists the other checkouts of the repo, each on its own branch: parallel subagents, or the owner's own work. Their commits in `commitsAhead` and files in `uncommitted` are not on this checkout yet. Tie them to tasks the same way, and make each one its own work record with `"worktree"` set to the worktree's `path` and `branch` named in `link`. Such a task is `in-progress` at most: it is done only once its work is on this checkout's branch. A worktree with `mergedIntoHead` true and nothing uncommitted holds nothing new; leave it out.
@@ -93,7 +93,15 @@ Take `update.readAt`, `readAtShort`, `branch`, `commit` (`head`), `fingerprint` 
 
 **Outcome**, for a task that is done or in progress and changes what someone can do or see: `before` and `now`, one sentence each, in the owner's words, and `tryIt`, one way to see it work. Take them from the diff, the commit messages and the plan; leave out any you cannot ground there.
 
-**Verified**: only the checks the caller tells you it ran, as `check` (the command or what was looked at, with its result in words), `result` (`passed` or `failed`) and `at` (the commit, or `working tree`). You never run checks yourself, so with nothing from the caller, leave `verified` out; the page then says no check is recorded. A done task with a failed check is not done.
+**Calls**, for a task that is done or in progress, changes what someone can do and has no recorded check of its own (a result of the owner's check commands covers a folder, so it does not count): the path a person goes through to check it by hand, as `calls`. At most six rows, each with `fn`, `at` and `depth`. The first row is where it starts, a route, command, screen or event, at `depth` 0; the functions it reaches follow at 1 and deeper. `at` is `file:line` where that name is defined or handled. Find lines by searching for the name (`git grep -n`), not by reading whole files: `check.mjs` refuses a call whose name is not within five lines of its `at`. Write calls for the tasks in this run's patch, or on a first map for the eight most recent such tasks. When the place it starts is not built yet, begin at the outermost function that is. Leave `calls` out only when the task has no function to point at.
+
+**Verified** has three sources, and you write the first two:
+
+- **Checks the caller ran:** `check` (the command or what was looked at, with its result in words), `result` (`passed` or `failed`) and `at` (the commit, or `working tree`).
+- **The owner's hand checks:** the lines under "Checked by hand" in a `Map answers:` block the caller passes. Record each on its task as `check` "Checked by hand by the owner", with `result` as the line gives it and `at` from that heading.
+- **The owner's check commands:** `merge.mjs` writes these from what `run-checks.mjs` saved, marked `"by": "script"`, along with `checks` for the whole project. Never write, change or `set` them.
+
+With nothing from these, leave `verified` out; the page then says no check is recorded. A field you give replaces the old one, so to add a check to a task that has some, give its `verified` list complete (`digest.mjs --item`). A done task with a failed check is not done. A check command that failed is on no task, because a failing suite does not say which task broke: record a finding with its name and last line, and put a task back to `in-progress` only when that output names it.
 
 Uncommitted changes you cannot tie to one task go in `unassigned`, once, not guessed onto a task. Never invent a file list or a hash: `check.mjs` refuses any hash or path that git does not know.
 
@@ -203,6 +211,7 @@ window.PROJECT_MAP = {
       "reason": "One line.",
       "evidence": ["Commit 58530c8 says: no double-booking check yet.", "The tests were not run for this map."],
       "outcome": { "before": "Two customers could book the same slot.", "now": "The second booking is refused.", "tryIt": "Book one slot from two windows." },
+      "calls": [ { "fn": "POST /bookings/confirm", "at": "src/routes.js:41", "depth": 0 }, { "fn": "confirmBooking()", "at": "src/bookings.js:12", "depth": 1 } ],
       "verified": [ { "check": "npm test: 12 passed", "result": "passed", "at": "58530c8" } ],
       "needs": [], "unlocks": ["T6"], "decisions": ["D1"],
       "work": [
@@ -293,4 +302,4 @@ Write plainly, in words the owner would use. No jargon in names, and no file pat
 
 ## Report
 
-Reply to the caller briefly: the path to the map; the next milestone and items left; the suggested next step; the parts that changed; stuck parts and what they wait on; open decisions with their defaults; the plan's approval and, if it is awaiting because the plan changed after a response, say so; which task-to-commit links you inferred; whether the style question is open; and anything you could not read or verify.
+Reply to the caller briefly: the path to the map; the next milestone and items left; the suggested next step; the parts that changed; stuck parts and what they wait on; open decisions with their defaults; the plan's approval and, if it is awaiting because the plan changed after a response, say so; which task-to-commit links you inferred; the owner's checks that ran and what each said; whether the style question is open; and anything you could not read or verify.

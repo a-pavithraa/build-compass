@@ -1,5 +1,11 @@
 # build-compass
 
+## 0.3.3
+
+- **The map can run your checks.** List the commands that check a project in `.project-map/checks.json`, and the agent runs them on each update through `map/run-checks.mjs`: only those commands, with a time limit each, and not again while the code is unchanged. A check that passed is recorded on every task with a file under the folder it covers. One that failed is shown for the whole project and on no task, because a failing suite does not say which task broke. Setup offers to write the list. A list that git tracks is refused, so one cannot arrive with someone else's repository.
+- **Check a task by hand, and record it.** A task with no recorded check shows the code it runs through, from where it starts, with file and line, and asks what you saw: it worked, or it did not. Your result joins the answers you already copy to Claude, and the next update records it. `check.mjs` refuses a call that is not at the line the map gives.
+- **File lists are complete.** The agent listed some of a commit's files under a task and left out others, test files among them, so a task could say it had tests and show none. A work record now lists every file of the commit that belongs to the task.
+
 ## 0.3.2
 
 - **Milestone headers no longer overlap.** A milestone with one or two tasks got a column too narrow for its name, tag and tally, so they ran into the next column. A header is now two rows, the name and then the tag and tally, and every column is wide enough for the second row. The page no longer scrolls sideways on a phone.

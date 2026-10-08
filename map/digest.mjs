@@ -33,7 +33,7 @@ if (itemAt >= 0) {
 }
 
 // Leaves out what is empty, so a line carries only what the item has.
-const lean = (obj) => Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined && v !== null && v !== false && !(Array.isArray(v) && !v.length)));
+const lean = (obj) => Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined && v !== null && v !== false && v !== 0 && !(Array.isArray(v) && !v.length)));
 
 const digest = {
   project: data.project,
@@ -46,10 +46,11 @@ const digest = {
     id: t.id, label: t.label === t.id ? undefined : t.label, name: t.name, status: t.status, part: t.part, milestone: t.milestone,
     needs: t.needs, unlocks: t.unlocks, decisions: t.decisions, waitingOn: t.waitingOn,
     work: list(t.work).map((w) => lean({ state: w.state, commits: list(w.commits).map((c) => c.hash), pushed: w.pushed, worktree: w.worktree, files: list(w.files).length })),
-    outcome: Boolean(t.outcome), verified: list(t.verified).map((v) => v.result),
+    outcome: Boolean(t.outcome), calls: list(t.calls).length, verified: list(t.verified).map((v) => (v.by === 'script' ? `${v.result} (script)` : v.result)),
   })),
   decisions: list(data.decisions).map((d) => lean({ id: d.id, question: d.question, options: d.options, default: d.default, answer: d.answer, readOnly: d.readOnly, waiting: d.waiting })),
   findings: list(data.findings),
+  checks: list(data.checks).map((c) => `${c.name}: ${c.result} at ${c.at}`),
   commits: list(data.commits).map((c) => [c.hash || 'uncommitted', c.task].filter(Boolean).join(' ')),
   alsoHolds: lean({
     decided: list(data.decided).length, panels: list(data.panels).map((p) => p.title),

@@ -214,6 +214,14 @@ table.grid td{padding:8px 10px;border-top:1px solid var(--rule);vertical-align:t
 .drawer p.t b{color:var(--ink)}
 .drawer ul.ev{margin:8px 0 0;padding-left:18px;color:var(--ink-2);font-size:14px}
 .drawer ul.ev li{margin-top:4px}
+.calls{margin-top:10px;border-top:1px solid var(--rule)}
+.call{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:baseline;padding:5px 0;border-bottom:1px solid var(--rule)}
+.call .fn{font-family:var(--mono);font-size:12.5px;overflow-wrap:anywhere}
+.call .at{font-family:var(--mono);font-size:12px;color:var(--ink-3);white-space:nowrap}
+.stack ul.ev{margin:0;padding:0;list-style:none;color:var(--ink-2);font-size:14px}
+.stack ul.ev li{display:flex;gap:8px;align-items:flex-start;padding:7px 0;border-bottom:1px solid var(--rule)}
+.stack ul.ev svg{margin-top:3px;color:var(--done)}
+.stack ul.ev li.failed svg{color:var(--stuck)}
 .kv{display:grid;grid-template-columns:96px minmax(0,1fr);gap:8px 14px;margin:10px 0 0;font-size:14px}
 .kv dt{color:var(--ink-3)}
 .kv dd{margin:0;display:flex;flex-wrap:wrap;gap:5px;align-items:center;color:var(--ink-2)}
@@ -345,10 +353,14 @@ ul.opts small{color:var(--ink-3)}
     /* Picks outlive the page's own reloads. A pick is kept only while its decision is still open
        and still offers that option, so an answer Claude has recorded clears itself. */
     function answerable(d){ return !d.answer && !d.readOnly; }
+    /* A task the owner can check by hand: its work exists and no check is recorded. The result is a pick like any other. */
+    var HAND = {passed:'It worked', failed:'It did not work'};
+    function checkable(t){ return (t.status==='done' || t.status==='in-progress') && !arr(t.verified).some(function(v){return v.by!=='script';}); }
     var STORE = 'project-map:'+(D.project||'')+':'+location.pathname;
     try{
       var saved = JSON.parse(localStorage.getItem(STORE) || '{}');
       DECS.forEach(function(d){ if(answerable(d) && arr(d.options).indexOf(saved[d.id])>=0) state.picks[d.id] = saved[d.id]; });
+      TASKS.forEach(function(t){ if(checkable(t) && HAND[saved[t.id]]) state.picks[t.id] = saved[t.id]; });
     }catch(x){ state.picks = {}; }
     function persist(){ try{ localStorage.setItem(STORE, JSON.stringify(state.picks)); }catch(x){ /* saving picks is a convenience only */ } }
     function answers(){
@@ -358,7 +370,12 @@ ul.opts small{color:var(--ink-3)}
         lines.push(shown(d)+'. '+d.question);
         lines.push('   -> '+(state.picks[d.id] || '(no answer; the default stands: '+(d['default']||'no default')+')'));
       });
-      return {text:lines.join('\n'), open:open.length, picked:picked.length};
+      var hand = TASKS.filter(function(t){return checkable(t) && state.picks[t.id];});
+      if(hand.length){
+        lines.push('', 'Checked by hand at '+(U.commit||'an unknown commit')+(U.uncommittedWork?' plus uncommitted work':'')+':');
+        hand.forEach(function(t){ lines.push(shown(t)+'. '+t.name); lines.push('   -> '+state.picks[t.id]); });
+      }
+      return {text:lines.join('\n'), open:open.length, picked:picked.length, checks:hand.length};
     }
 
     /* What moved since this viewer last marked the map as seen, across however many updates
@@ -534,12 +551,20 @@ ul.opts small{color:var(--ink-3)}
       });
       if(!DECS.length) h += '<p class="empty">Nothing needs your call right now.</p>';
       var A = answers();
-      if(A.picked){
-        h += '<div class="paste" id="answers"><p class="msg"><b>'+A.picked+' of '+A.open+' answered.</b> Copy them all and paste them to Claude in one go; the next update of the map records them.</p>'
+      if(A.picked || A.checks){
+        var ready = [A.picked?A.picked+' of '+A.open+' answered':'', A.checks?plural(A.checks,'task','tasks')+' checked by hand':''].filter(Boolean).join(', ');
+        h += '<div class="paste" id="answers"><p class="msg"><b>'+ready+'.</b> Copy them all and paste them to Claude in one go; the next update of the map records them.</p>'
           + '<code id="line">'+e(A.text)+'</code><div class="row"><button class="btn" id="copy">'+ICON.copy+'Copy answers</button>'
           + '<button class="btn quiet" id="clearpicks">Clear picks</button><span class="msg" id="copymsg" role="status"></span></div></div>';
       }
       h += '</section>';
+      var CH = arr(D.checks);
+      if(CH.length){
+        h += '<section><div class="sec-head"><h2>Checks run</h2><span class="hint">The commands listed in checks.json</span></div><ul class="ev">'
+          + CH.map(function(c){ var bad = c.result==='failed';
+              return '<li'+(bad?' class="failed"':'')+'>'+(bad?ICON.x:ICON.ok)+'<span><b>'+(bad?'Failed: ':'Passed: ')+e(c.name)+'.</b> '+e(c.summary||'')+(c.at?' <span class="mono">at '+e(c.at)+'</span>':'')+'</span></li>'; }).join('')
+          + '</ul></section>';
+      }
       var F = arr(D.findings);
       if(F.length){
         h += '<section><div class="sec-head"><h2>Worth a look</h2><span class="hint">Found while reading, not fixed</span></div>';
@@ -649,6 +674,25 @@ ul.opts small{color:var(--ink-3)}
           h += '<h3>Checked</h3><div class="wait unchecked">'+ICON.q+'<span><b>No check is recorded for this task.</b>Its code is committed, which does not show that it works.</span></div>';
         } else if(o.status==='in-progress'){
           h += '<h3>Checked</h3><p class="t">No check is recorded for this task yet.</p>';
+        }
+        if(checkable(o)){
+          var calls = arr(o.calls), mine = state.picks[o.id];
+          h += '<h3>Check it by hand</h3>';
+          if(calls.length){
+            h += '<div class="calls" role="list" aria-label="The code this task runs through">'+calls.map(function(c){
+              return '<div class="call" role="listitem"><span class="fn" style="padding-left:'+(Math.min(+c.depth||0,6)*14)+'px">'+e(c.fn)+'</span><span class="at" title="'+e(c.at)+'">'+e(String(c.at||'').split('/').pop())+'</span></div>';
+            }).join('')+'</div><p class="meta">The code this task runs through, from where it starts. Use the task, then say what you saw.</p>';
+          } else {
+            h += '<p class="t">'+(out.tryIt?'Try it as described above, then say what you saw.':'The map does not say how to try this one. Use it the way a person would, then say what you saw.')+'</p>';
+          }
+          h += '<fieldset><legend class="meta" style="padding:0">What you saw</legend>';
+          ['passed','failed'].forEach(function(v){
+            h += '<label class="opt"><input type="radio" name="pick" value="'+v+'"'+(mine===v?' checked':'')+'><span>'+HAND[v]+'</span></label>';
+          });
+          h += '</fieldset>';
+          h += mine
+            ? '<p class="meta">Added to your answers. <button class="count" id="toanswers">Copy them from the decisions list</button> &middot; <button class="count" id="unpick">Remove this result</button></p>'
+            : '<p class="meta">Your result joins the answers in the decisions list, to copy and paste to Claude. Claude records it against '+e(U.commit||'the commit the map was read at')+'.</p>';
         }
         h += '<h3>What changed</h3>'+(arr(o.work).length?arr(o.work).map(record).join(''):'<p class="t">Nothing yet. No commit and no uncommitted change belongs to this task.</p>');
         h += '<h3>Where it sits</h3><dl class="kv"><dt>Needs</dt><dd>'+refs(o.needs)+'</dd><dt>Unlocks</dt><dd>'+refs(o.unlocks)+'</dd>'

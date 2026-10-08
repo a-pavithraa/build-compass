@@ -98,6 +98,22 @@ test('checks recorded on a task: a failed one keeps the task from being done', (
   }
 });
 
+test('a call must be where the map says it is', (t) => {
+  const p = project(t);
+  write(p.dir, 'src/book.js', 'const x = 1;\n\nexport function confirmBooking(slot) {\n  return slot;\n}\n');
+  const withCalls = (calls) => check(writeMap(p.dir, map(p, (d) => { d.tasks[1].calls = calls; return d; })));
+  const real = withCalls([{ fn: 'POST /bookings', at: 'src/book.js:3', depth: 0 }, { fn: 'confirmBooking()', at: 'src/book.js:3', depth: 1 }]);
+  assert.equal(real.code, 1, 'a route that is not in the file is refused');
+  assert.match(real.stderr, /call "POST \/bookings" is not within 5 lines of src\/book\.js:3/);
+  assert.equal(withCalls([{ fn: 'confirmBooking()', at: 'src/book.js:3', depth: 0 }]).code, 0);
+
+  const invented = withCalls([{ fn: 'confirmBooking()', at: 'src/book.js:90' }, { fn: 'refund()', at: 'src/ghost.js:4' }, { fn: 'cancel()', at: 'src/book.js' }, { at: 'src/book.js:1' }]);
+  assert.equal(invented.code, 1);
+  for (const problem of ['that file has 6 lines', 'that file is not on disk', '"at" must be a file and a line', 'a call has no fn']) {
+    assert.ok(invented.stderr.includes(problem), `expected: ${problem}\n${invented.stderr}`);
+  }
+});
+
 test('outside git the structure is still checked and the git checks are skipped with a note', (t) => {
   const dir = tempDir(t);
   const file = writeMap(dir, map({ hash: 'abc1234', head: 'abc1234' }));
