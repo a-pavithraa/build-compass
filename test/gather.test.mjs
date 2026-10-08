@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { repo, tempDir, git, write, commit, run } from './helpers.mjs';
+import { repo, tempDir, git, write, commit, run, writeMap } from './helpers.mjs';
 
 const gather = (cwd, ...args) => {
   const result = run('gather.mjs', args, { cwd });
@@ -67,6 +67,17 @@ test('an unknown --since falls back to the latest commits and says why', (t) => 
   const out = gather(dir, '--since', 'deadbee');
   assert.match(out.sinceNote, /deadbee was not found/);
   assert.equal(out.commits.length, 1);
+});
+
+test('with no --since, an update starts from the commit the map was read at', (t) => {
+  const dir = repo(t);
+  const mapped = commit(dir, 'mapped');
+  commit(dir, 'after the map');
+  assert.equal(gather(dir).commits.length, 2, 'with no map, the latest commits');
+  writeMap(dir, { update: { commit: mapped } });
+  const out = gather(dir);
+  assert.equal(out.since, mapped);
+  assert.deepEqual(out.commits.map((c) => c.subject), ['after the map']);
 });
 
 test('a commit pushed to a remote counts as pushed even when the branch has no upstream', (t) => {

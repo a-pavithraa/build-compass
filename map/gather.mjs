@@ -3,6 +3,7 @@
 // their files, uncommitted work, a fingerprint of that work, and the work in other worktrees.
 // Run it from the project root.
 //   node gather.mjs [--since <commit>] [--limit 20]
+// With no --since, an update starts from the commit the project's map was last read at.
 // Every hash, path and line count in the output comes from git or the file on disk.
 import { execFileSync } from 'node:child_process';
 import { readFileSync, statSync, existsSync } from 'node:fs';
@@ -11,7 +12,15 @@ import { fingerprint } from './fingerprint.mjs';
 
 const argv = process.argv.slice(2);
 const opt = (name) => { const i = argv.indexOf(name); return i >= 0 ? argv[i + 1] : undefined; };
-const since = opt('--since');
+function mapCommit() {
+  try {
+    const text = readFileSync(join(process.cwd(), '.project-map', 'map-data.js'), 'utf8');
+    return JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1)).update.commit;
+  } catch {
+    return undefined;
+  }
+}
+const since = opt('--since') || mapCommit();
 const limit = Math.max(1, +(opt('--limit') || 20));
 const SKIP = /^(\.project-map|\.grill)\//;
 const BINARY_PROBE = 8000;

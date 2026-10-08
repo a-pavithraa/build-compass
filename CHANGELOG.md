@@ -1,5 +1,13 @@
 # build-compass
 
+## 0.3.1
+
+- **An update writes only what changed.** The agent used to read the whole previous data file and write the whole new one, and that file grows with every task. `map/digest.mjs` now prints a short digest of the previous data, the agent writes a patch, and `map/merge.mjs` applies it, runs the same checks as `check.mjs`, and replaces the data only when they pass. Parts of the data the update does not touch, your own edits included, are left as they were. `merge.mjs` also files the previous data under `history/` and keeps the newest twenty.
+- **Your `CLAUDE.md` is not loaded into the map agent.** The agent sets `omitClaudeMd`, so a long `CLAUDE.md` no longer adds to the cost of every update. It reads the README, the docs and the plan as before.
+- **`gather.mjs` knows where an update starts.** With no `--since`, it starts from the commit the map was last read at, so the agent copies the page, reads the digest and gathers the git facts in one command.
+- **One item of the map, on request.** `digest.mjs --item <id>` prints one task, part, milestone or decision in full. Claude uses it in place of reading the data file.
+- **Manual install copies every script.** The README's copy line had missed `fingerprint.mjs` since 0.2.2.
+
 ## 0.3.0
 
 - **What a task changed for you.** A done or in-progress task can open with before, now and one way to try it, taken from the diff, the commit messages and the plan. The agent leaves out what it cannot ground there.

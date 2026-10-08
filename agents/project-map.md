@@ -3,6 +3,7 @@ name: project-map
 description: "Updates the project map: reads the code, git history and plans, and writes .project-map/map-data.js, which a ready-made page draws as parts, statuses, milestones, decisions and a suggested next step. Use before a long autonomous stretch, after a milestone or finished task, and whenever the map is out of date. It maps and does nothing else; it never changes project code."
 tools: Read, Glob, Grep, Bash, Write, Edit, AskUserQuestion
 model: sonnet
+omitClaudeMd: true
 effort: medium
 memory: user
 color: cyan
@@ -18,7 +19,7 @@ Inside the project, exactly this:
 
 1. `.project-map/map-data.js`: the data, described under "The data file".
 2. `.project-map/map.html`: a copy of the ready-made page, made with the shell, never by hand.
-3. `.project-map/history/`: the previous data file, copied before you overwrite it. Keep the newest 20 and delete older ones.
+3. `.project-map/map-patch.json`: on an update, only what changed. `merge.mjs` applies it, files the previous data under `.project-map/history/` and removes the patch.
 4. `.project-map/plan-index.json`: the ids of a plan's claims, written by `plan-extract.mjs`, never by hand.
 5. `.project-map/plan-responses/`: the owner's responses to a plan, saved as the caller passes them.
 6. `.gitignore`: only to add the line `.project-map/` if the project is a git repo and the line is missing. If the repo has no `.gitignore`, create one holding that line.
@@ -30,13 +31,15 @@ Outside the project you write only to your own memory. Bash is for reading (`git
 The scripts ship with this plugin in `${CLAUDE_PLUGIN_ROOT}/map/`. If that folder does not exist, use `~/.claude/project-map/`. Below, `<map>` is whichever one exists. Run every command from the project root.
 
 1. **Copy the page.** Copy `<map>/map.html` over `.project-map/map.html` every run, so the page stays current. If `<map>/map.html` does not exist, stop and say the page is missing. Add the `.gitignore` line now, if it is missing, so that it is in place before step 3 reads the working tree.
-2. **Read the previous data,** if `.project-map/map-data.js` exists. It is your baseline, and the owner edits it: their milestones, wording and answered decisions are authoritative. Copy it to `.project-map/history/map-data-<YYYYMMDD-HHMM>.js`. On a first map, create `.project-map/history/` empty.
-3. **Gather the git facts:** `node "<map>/gather.mjs" --since <update.commit from the previous data>`, or with no `--since` on a first map. It prints HEAD, the branch, the push state, each commit with its files and line counts, and the uncommitted files with theirs. See "What each task changed".
+2. **Read the digest of the previous data,** if `.project-map/map-data.js` exists: `node "<map>/digest.mjs"`. It prints every part, task, milestone and decision with its id, name and status, and the findings in full. It is your baseline, and the owner edits the data: their milestones, wording and answered decisions are authoritative. Do not read `map-data.js` itself: it grows with every task, and the digest holds what an update needs. For one item or one top-level field in full, `node "<map>/digest.mjs" --item <id or field>`.
+3. **Gather the git facts:** `node "<map>/gather.mjs"`. On an update it starts from the commit the previous map was read at. It prints HEAD, the branch, the push state, each commit with its files and line counts, and the uncommitted files with theirs. See "What each task changed".
 4. **Read the plan,** if there is one. See "Plans written with html-plan".
 5. **Read the project**, as much as the statuses need and no more. On an update, re-read only the parts the gathered commits and uncommitted files touch.
-6. **Write `map-data.js`** with the Write tool, and change it later with Edit. Never write it, or a saved plan response, through a shell heredoc: the quoting breaks on long JSON.
-7. **Check it:** `node "<map>/check.mjs" .project-map/map-data.js`. It also checks every hash and file path against git. Fix every problem it prints. If Node is not available, re-read your file once for broken ids instead, take the git facts from `git log --numstat` and `git status`, and say in your report that the scripts did not run.
+6. **Write the data** with the Write tool: on a first map, the whole of `map-data.js`; on an update, only `map-patch.json` (see "An update is a patch"). Never write either, or a saved plan response, through a shell heredoc, and never through a script of your own: the quoting breaks on long JSON.
+7. **Check it.** On a first map: `node "<map>/check.mjs" .project-map/map-data.js`. On an update: `node "<map>/merge.mjs"`, once the Write call has returned. It applies the patch and runs the same check on the result. Both check every hash and file path against git. Fix every problem printed, with Edit, and run the command again. If Node is not available, read `map-data.js`, write the whole file, re-read it once for broken ids, take the git facts from `git log --numstat` and `git status`, and say in your report that the scripts did not run.
 8. **Report** (see the end).
+
+Every command you run sends everything you have read so far again. Run steps 1 to 3 as one command, and read several files in one command.
 
 ## Style: asked once
 
@@ -94,7 +97,7 @@ Take `update.readAt`, `readAtShort`, `branch`, `commit` (`head`), `fingerprint` 
 
 Uncommitted changes you cannot tie to one task go in `unassigned`, once, not guessed onto a task. Never invent a file list or a hash: `check.mjs` refuses any hash or path that git does not know.
 
-On an update, keep the record of a task that is done and fully committed, re-checking only whether it is pushed. Rebuild the record of every other task from git.
+On an update, put a task in the patch when this run's `gather.mjs` output has something for it, a commit, an uncommitted file or work in a worktree, or when the digest shows an uncommitted record on it. Rebuild that task's records from git. Leave every other task out of the patch: its records stand. To change one part of a record you are keeping, such as `pushed`, get the task with `digest.mjs --item` and give its `work` list complete.
 
 ## Decisions
 
@@ -249,6 +252,40 @@ window.PROJECT_MAP = {
 ```
 
 The comments above explain the example. Do not put comments in the file you write.
+
+### An update is a patch
+
+On an update, write `.project-map/map-patch.json`: one JSON object that holds only what changed. `merge.mjs` lays it over the previous data, so everything you leave out stays as it was, the owner's edits included. Every key is optional:
+
+```json
+{
+  "set": {
+    "update": { "readAt": "2026-10-08 09:40 +05:30", "readAtShort": "8 Oct 2026, 09:40", "branch": "main", "commit": "9d2f1c3",
+                "fingerprint": "1b7e55a09c3d4f28", "uncommittedWork": false, "pushNote": "6 commits on main, none pushed (no remote)",
+                "testsRun": false, "changed": ["P3"], "changedNote": "Confirming a booking is done." },
+    "next": { "step": "Start cancelling a booking", "reason": "It is the last task before the milestone.", "open": "T7" }
+  },
+  "items": [
+    { "id": "T3", "status": "done", "reason": "The double-booking check is committed.", "unlocks": null,
+      "work": [ { "state": "committed", "link": "The commit message starts with T3.", "description": "Confirming refuses a slot that is already booked.",
+                  "commits": [ { "hash": "9d2f1c3", "date": "2026-10-08 09:31", "subject": "T3: refuse a booked slot" } ], "pushed": false,
+                  "files": [ { "path": "src/bookings.js", "kind": "edited", "added": 22, "removed": 1 } ] } ] },
+    { "id": "P3", "status": "done", "reason": "Confirming and its check are committed." },
+    { "id": "T7", "in": "tasks", "name": "Cancel a booking", "part": "P3", "milestone": "M1", "status": "not-started", "reason": "Named in the plan; nothing exists." }
+  ],
+  "remove": ["T6", "P5"],
+  "add": { "findings": [ { "title": "One line", "text": "A sentence.", "refs": ["T7"] } ],
+           "commits": [ { "hash": "9d2f1c3", "date": "2026-10-08 09:31", "subject": "T3: refuse a booked slot", "task": "T3" } ] },
+  "drop": { "findings": ["No test covers an expired hold"] }
+}
+```
+
+- **`set`** replaces a top-level field whole; `null` removes it. `update` is the exception: it is laid over the previous one. Always set in it every field this run's `gather.mjs` output gives, with `changed` and `changedNote`. Leave out `version`, `first` and `previous`: `merge.mjs` writes them.
+- **`items`** changes the part, task, milestone or decision with that `id`. Give only the fields that changed. A field you give replaces the old one whole, so a changed `work` list is given complete, and `null` removes a field. A new id also says where it goes: `"in"` is `tasks`, `parts`, `milestones` or `decisions`. A task joins the `tasks` list of the `part` and `milestone` it names; do not edit those lists for it.
+- **`remove`** deletes items, and their ids from every list that names them.
+- **`add`** and **`drop`** are for `findings`, `commits` and `decided`, which have no ids. `drop` names a finding by its exact title. `add.commits` takes, newest first, one entry for each piece of uncommitted work that `gather.mjs` prints now, here or in a worktree, then this run's new commits. `merge.mjs` drops every uncommitted entry from before, so one you do not add again is gone, and keeps the newest twenty.
+
+When `merge.mjs` prints a problem, the data is unchanged: fix the patch and run it again.
 
 The page draws the same core for every project: the count and next step, the tasks by milestone, the parts, the decisions, the findings, the commits. `panels` is where this project gets something of its own. Add a table or a list only when it shows what the core does not, such as the screens a user will see, the risks a review is watching, or what a release still needs, and only from real data. In a table cell, an id of a task, part, milestone or decision becomes a link. Most maps need none or one.
 

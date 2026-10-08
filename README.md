@@ -125,7 +125,9 @@ Ask Claude to "grill me in a page" about whatever you are planning.
 
 It reads the code, git history, the README and docs, plans, and GitHub issues and pull requests if the `gh` CLI is set up.
 
-It writes to `.project-map/` in the project, adds that folder to `.gitignore`, and keeps the last 20 versions of the data in `.project-map/history/`. Commits, file lists and line counts come from a script that reads git, not from the model, and every hash and path on the map is checked against git before the map is shown. It does not change project code, commit, or run builds and tests.
+It does not load your `CLAUDE.md`, so a long one adds nothing to the cost of an update.
+
+It writes to `.project-map/` in the project, adds that folder to `.gitignore`, and keeps the last 20 versions of the data in `.project-map/history/`. On an update it writes only what changed, and a script merges that into the data, so what an update does not touch stays as it was. Commits, file lists and line counts come from a script that reads git, not from the model, and every hash and path on the map is checked against git before the map is shown. It does not change project code, commit, or run builds and tests.
 
 That boundary is an instruction in the agent's prompt, not a sandbox. The agent has shell access so it can read git history. If you need a hard guarantee, add a permission rule or hook of your own.
 
@@ -150,7 +152,7 @@ If you would rather not use the plugin, copy the pieces into your own folders:
 ```bash
 mkdir -p ~/.claude/agents ~/.claude/skills ~/.claude/project-map
 cp agents/project-map.md ~/.claude/agents/
-cp map/map.html map/check.mjs map/gather.mjs map/plan-extract.mjs map/status.mjs ~/.claude/project-map/
+cp map/* ~/.claude/project-map/
 cp -r skills/mapping-progress skills/grill-page ~/.claude/skills/
 ```
 
