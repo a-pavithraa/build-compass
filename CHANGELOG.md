@@ -1,5 +1,11 @@
 # build-compass
 
+## 0.3.4
+
+- **Call stacks reach older tasks.** A map that already had finished tasks never got their call stacks: the agent wrote one only for a task that changed in that update. Each update now also fills in up to five older tasks that have none, most recent first, until none are left.
+- **No empty space beside the right-hand column.** The commits and the tables below them now follow the parts directly; they used to wait until the decisions, checks and findings beside them had ended.
+- **Reports use names.** The agent's report names a part, task, milestone or decision, and no longer gives an id such as `plan-c9` alone.
+
 ## 0.3.3
 
 - **The map can run your checks.** List the commands that check a project in `.project-map/checks.json`, and the agent runs them on each update through `map/run-checks.mjs`: only those commands, with a time limit each, and not again while the code is unchanged. A check that passed is recorded on every task with a file under the folder it covers. One that failed is shown for the whole project and on no task, because a failing suite does not say which task broke. Setup offers to write the list. A list that git tracks is refused, so one cannot arrive with someone else's repository.

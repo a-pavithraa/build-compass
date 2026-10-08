@@ -122,8 +122,7 @@ svg.i .fill{fill:currentColor;stroke:none}
 .g{display:inline-flex;vertical-align:-3px}
 .g.done{color:var(--done)}.g.in-progress{color:var(--progress)}.g.not-started{color:var(--todo)}.g.stuck{color:var(--stuck)}
 
-.main,.lower{display:grid;grid-template-columns:minmax(0,1fr) 440px;gap:40px;align-items:start}
-.lower{margin-top:28px}
+.main{display:grid;grid-template-columns:minmax(0,1fr) 440px;gap:40px;align-items:start}
 .stack > section + section{margin-top:22px}
 .sec-head{display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px;padding:14px 0 10px;border-top:1px solid var(--rule)}
 .sec-head h2{font-size:20px}
@@ -266,7 +265,11 @@ ul.opts small{color:var(--ink-3)}
 .paste .msg.err{color:var(--stuck)}
 
 @media (max-width:1100px){
-  .main,.lower{grid-template-columns:minmax(0,1fr)}
+  .main{display:flex;flex-direction:column;gap:22px}
+  .main > .stack{display:contents}
+  .main > .stack > section{margin-top:0;order:3;min-width:0}
+  .main > .col-side > section{order:2}
+  .main #parts{order:1}
   .lead{grid-template-columns:minmax(0,1fr);gap:22px}
 }
 @media (max-width:820px){
@@ -512,7 +515,38 @@ ul.opts small{color:var(--ink-3)}
         h += '</section>';
       }
 
-      h += '<div class="main"><section id="parts"><div class="sec-head"><h2>Parts</h2><span class="hint">'+plural(PARTS.length,'part','parts')+', '+plural(TASKS.length,'task','tasks')+'</span>'
+      var C = arr(D.commits), UN = D.unassigned, SC = D.scope, P = arr(D.panels);
+      var leftCol = '', rightCol = '';
+      if(C.length){
+        leftCol += '<section><div class="sec-head"><h2>What has been committed</h2><span class="hint">'+e(U.pushNote||'')+'</span></div>';
+        C.forEach(function(c){
+          leftCol += '<div class="crow">'+(c.hash?(c.url?'<a class="mono" href="'+href(c.url)+'">'+e(c.hash)+'</a>':'<span class="mono">'+e(c.hash)+'</span>'):'<span class="un">Not committed</span>')
+            + '<span class="when num">'+e(c.date||'')+'</span><span class="subj">'+e(c.subject||'')+(c.taskNote?' <span class="meta">('+e(c.taskNote)+')</span>':'')+'</span>'
+            + '<span class="cref">'+(c.task?ref(c.task):'')+'</span></div>';
+        });
+        leftCol += '</section>';
+      }
+      P.forEach(function(p){
+        var body = '';
+        if(p.kind==='table'){
+          body = '<div class="tblwrap"><table class="grid"><thead><tr>'+arr(p.columns).map(function(c){return '<th>'+e(c)+'</th>';}).join('')+'</tr></thead><tbody>'
+            + arr(p.rows).map(function(r){return '<tr>'+arr(r).map(function(c){return '<td>'+(byId[c]?ref(c):e(c))+'</td>';}).join('')+'</tr>';}).join('')+'</tbody></table></div>';
+        } else {
+          body = arr(p.items).map(function(f){
+            return '<div class="find"><h3>'+e(f.title)+'</h3>'+(f.text?'<p>'+e(f.text)+'</p>':'')+(arr(f.refs).length?'<div class="refs">'+arr(f.refs).map(ref).join('')+'</div>':'')+'</div>';
+          }).join('');
+        }
+        leftCol += '<section><div class="sec-head"><h2>'+e(p.title)+'</h2>'+(p.hint?'<span class="hint">'+e(p.hint)+'</span>':'')+'</div>'+body+'</section>';
+      });
+      if(UN && arr(UN.files).length){
+        rightCol += '<section><div class="sec-head"><h2>Uncommitted, not tied to a task</h2></div>'+fileRows(UN.files)+(UN.note?'<p class="meta" style="padding:0 10px">'+e(UN.note)+'</p>':'')+'</section>';
+      }
+      if(SC && arr(SC.items).length){
+        rightCol += '<section><div class="sec-head"><h2>'+e(SC.title||'Not changing')+'</h2></div><div class="scope"><ul>'
+          + arr(SC.items).map(function(s){return '<li>'+e(s)+'</li>';}).join('')+'</ul><p>'+e(SC.note||'Never counted as work left.')+'</p></div></section>';
+      }
+
+      h += '<div class="main"><div class="stack" id="col-main"><section id="parts"><div class="sec-head"><h2>Parts</h2><span class="hint">'+plural(PARTS.length,'part','parts')+', '+plural(TASKS.length,'task','tasks')+'</span>'
         + '<div class="legend" role="group" aria-label="Filter by status">';
       ORDER.forEach(function(s){
         var n = PARTS.filter(function(p){return p.status===s;}).length;
@@ -536,9 +570,9 @@ ul.opts small{color:var(--ink-3)}
           + (p.tests?'<div class="ptests">'+e(p.tests)+'</div>':'')+'</div></div>';
       });
       if(!vis.length) h += '<p class="empty">'+(PARTS.length?'No part matches this filter. <button class="count" data-filter="">Show everything</button>':'No parts have been mapped yet.')+'</p>';
-      h += '</section>';
+      h += '</section>'+leftCol+'</div>';
 
-      h += '<div class="stack"><section><div class="sec-head"><h2>Decisions for you</h2><span class="hint">'+openDecs.length+' open</span></div>';
+      h += '<div class="stack col-side" id="col-side"><section><div class="sec-head"><h2>Decisions for you</h2><span class="hint">'+openDecs.length+' open</span></div>';
       DECS.forEach(function(d){
         var pick = state.picks[d.id], line;
         if(d.answer) line = 'Answered: <b>'+e(d.answer)+'</b>.';
@@ -579,39 +613,7 @@ ul.opts small{color:var(--ink-3)}
         DD.forEach(function(x){ h += '<div class="find"><h3>'+e(x.question)+'</h3><p>'+e(x.answer)+(x.source?' <span class="meta">('+e(x.source)+')</span>':'')+'</p></div>'; });
         h += '</section>';
       }
-      h += '</div></div>';
-
-      var C = arr(D.commits), UN = D.unassigned, SC = D.scope, P = arr(D.panels);
-      var leftCol = '', rightCol = '';
-      if(C.length){
-        leftCol += '<section><div class="sec-head"><h2>What has been committed</h2><span class="hint">'+e(U.pushNote||'')+'</span></div>';
-        C.forEach(function(c){
-          leftCol += '<div class="crow">'+(c.hash?(c.url?'<a class="mono" href="'+href(c.url)+'">'+e(c.hash)+'</a>':'<span class="mono">'+e(c.hash)+'</span>'):'<span class="un">Not committed</span>')
-            + '<span class="when num">'+e(c.date||'')+'</span><span class="subj">'+e(c.subject||'')+(c.taskNote?' <span class="meta">('+e(c.taskNote)+')</span>':'')+'</span>'
-            + '<span class="cref">'+(c.task?ref(c.task):'')+'</span></div>';
-        });
-        leftCol += '</section>';
-      }
-      P.forEach(function(p){
-        var body = '';
-        if(p.kind==='table'){
-          body = '<div class="tblwrap"><table class="grid"><thead><tr>'+arr(p.columns).map(function(c){return '<th>'+e(c)+'</th>';}).join('')+'</tr></thead><tbody>'
-            + arr(p.rows).map(function(r){return '<tr>'+arr(r).map(function(c){return '<td>'+(byId[c]?ref(c):e(c))+'</td>';}).join('')+'</tr>';}).join('')+'</tbody></table></div>';
-        } else {
-          body = arr(p.items).map(function(f){
-            return '<div class="find"><h3>'+e(f.title)+'</h3>'+(f.text?'<p>'+e(f.text)+'</p>':'')+(arr(f.refs).length?'<div class="refs">'+arr(f.refs).map(ref).join('')+'</div>':'')+'</div>';
-          }).join('');
-        }
-        leftCol += '<section><div class="sec-head"><h2>'+e(p.title)+'</h2>'+(p.hint?'<span class="hint">'+e(p.hint)+'</span>':'')+'</div>'+body+'</section>';
-      });
-      if(UN && arr(UN.files).length){
-        rightCol += '<section><div class="sec-head"><h2>Uncommitted, not tied to a task</h2></div>'+fileRows(UN.files)+(UN.note?'<p class="meta" style="padding:0 10px">'+e(UN.note)+'</p>':'')+'</section>';
-      }
-      if(SC && arr(SC.items).length){
-        rightCol += '<section><div class="sec-head"><h2>'+e(SC.title||'Not changing')+'</h2></div><div class="scope"><ul>'
-          + arr(SC.items).map(function(s){return '<li>'+e(s)+'</li>';}).join('')+'</ul><p>'+e(SC.note||'Never counted as work left.')+'</p></div></section>';
-      }
-      if(leftCol||rightCol) h += '<div class="lower"><div class="stack">'+leftCol+'</div><div class="stack">'+rightCol+'</div></div>';
+      h += rightCol+'</div></div>';
 
       h += '<p class="foot">Statuses are judged from the code, the tests and the commit history'+(U.readAt?' as read on '+e(U.readAt):'')+'. '
         + (U.testsRun?'':'The map did not run the tests. ')
