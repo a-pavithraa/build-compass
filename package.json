@@ -2,14 +2,11 @@
   "name": "build-compass",
   "private": true,
   "type": "module",
-  "description": "Tests for the build-compass plugin's map scripts. The plugin itself needs no install step.",
+  "description": "Tests for the build-compass plugin's map scripts. The plugin itself installs nothing: keep dependencies out of this file, because installing the plugin installs them for every user.",
   "scripts": {
     "test": "node --test \"test/*.test.mjs\""
   },
   "engines": {
     "node": ">=18"
-  },
-  "devDependencies": {
-    "playwright": "1.64.0"
   }
 }

@@ -1,5 +1,9 @@
 # build-compass
 
+## 0.2.1
+
+- **Installing the plugin installs nothing.** 0.2.0 listed Playwright as a dev dependency, and installing the plugin ran `npm install`, which added 19 MB of test tooling to every install. The page tests now get Playwright only where they run.
+
 ## 0.2.0
 
 - **Renamed to build-compass.** The plugin and its repository were called `project-map`. The plugin holds more than the map, and a different `project-map` skill draws code dependency graphs. Install with `build-compass@a-pavithraa`; commands start with `/build-compass:`. The agent, the skills and the `.project-map/` folder keep their names.

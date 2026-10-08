@@ -152,7 +152,7 @@ Then add the block in [`skills/setup/claude-md-block.md`](./skills/setup/claude-
 
 ## Development
 
-`npm install`, then `npm test`, runs the tests with Node's own test runner. They cover the map's scripts, against throwaway git repositories and a small sample plan in `test/fixtures/`; the map page, in a headless browser; and the data example in the agent's prompt, which must pass `check.mjs`. They need Node 21 or later and git. The page tests use Playwright's Chromium (`npx playwright install chromium`) or an installed Chrome, and skip themselves when neither is there. GitHub Actions runs them on every push.
+`npm test` runs the tests with Node's own test runner. They cover the map's scripts, against throwaway git repositories and a small sample plan in `test/fixtures/`; the map page, in a headless browser; and the data example in the agent's prompt, which must pass `check.mjs`. They need Node 21 or later and git. The page tests need Playwright, which the plugin does not depend on, so that installing the plugin installs nothing: run `npm install --no-save playwright@1.64.0` once, and they use an installed Chrome or Playwright's Chromium (`npx playwright install chromium`). Without Playwright they skip themselves. GitHub Actions runs them on every push.
 
 ## Credits
 
