@@ -123,6 +123,8 @@ On the example project in the screenshot, with the default Sonnet model, a first
 
 Ask Claude to "grill me in a page" about whatever you are planning.
 
+![A round of grilling questions as a page: two questions answered by clicking an option, one of them the recommended one, with a Copy answers button at the bottom](docs/example-grill.png)
+
 - Each question shows its options, with Claude's recommendation tagged. You click to answer, including to agree.
 - Every question has a "Something else" box and room for a note.
 - One **Copy answers** button gives you a block to paste back. Anything you did not answer is reported as unanswered, never as agreement.
