@@ -2,10 +2,11 @@
 // Prints where a project stands, read from its map, in a few lines: how old the map is against git,
 // the next milestone and items left, the next step, what is stuck, and the open decisions.
 //   node status.mjs [path/to/.project-map/map-data.js]
-//   node status.mjs --session-start     (as a hook: says something only when the map is behind)
+//   node status.mjs --session-start     (as a hook: says something only when the map is out of date)
 import { readFileSync, existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { dirname, resolve, join } from 'node:path';
+import { fingerprint } from './fingerprint.mjs';
 
 const argv = process.argv.slice(2);
 const sessionStart = argv.includes('--session-start');
@@ -39,26 +40,35 @@ const git = (...args) => {
 };
 
 const update = data.update || {};
+// The map is current when this checkout is at the commit it was read at and its uncommitted work
+// has the fingerprint recorded then. Any other commit, older or newer, or any new edit makes it stale.
 function freshness() {
-  if (!update.commit) return { behind: null, text: '' };
+  if (!update.commit) return { stale: false, text: '' };
   const head = git('rev-parse', '--short', 'HEAD');
-  if (head === null) return { behind: null, text: '' };
-  const count = git('rev-list', '--count', `${update.commit}..HEAD`);
-  const dirty = (git('status', '--porcelain', '--untracked-files=normal') || '').split('\n')
-    .filter((line) => line && !/\s\.(project-map|grill)\//.test(line)).length;
-  if (count === null) return { behind: Infinity, text: `drawn at ${update.commit}, which is no longer in this branch's history` };
-  const behind = +count;
+  if (head === null) return { stale: false, text: '' };
   const parts = [];
-  if (behind) parts.push(`${behind} commit${behind === 1 ? '' : 's'} behind HEAD (${head})`);
-  if (dirty) parts.push(`${dirty} file${dirty === 1 ? '' : 's'} changed since${behind ? '' : ' it was read'}`);
-  return { behind, dirty, text: parts.length ? parts.join(', ') : 'up to date with git' };
+  if (git('rev-parse', '--verify', '-q', `${update.commit}^{commit}`) === null) {
+    parts.push(`drawn at ${update.commit}, which this repository no longer has`);
+  } else if (git('rev-parse', 'HEAD') !== git('rev-parse', `${update.commit}^{commit}`)) {
+    const ahead = +git('rev-list', '--count', `${update.commit}..HEAD`);
+    const back = +git('rev-list', '--count', `HEAD..${update.commit}`);
+    if (ahead && !back) parts.push(`${ahead} commit${ahead === 1 ? '' : 's'} behind HEAD (${head})`);
+    else if (back && !ahead) parts.push(`drawn at ${update.commit}, ${back} commit${back === 1 ? '' : 's'} newer than the checked-out ${head}`);
+    else parts.push(`drawn at ${update.commit}, on a different line of history from HEAD (${head})`);
+  }
+  if (update.fingerprint) {
+    let now = null;
+    try { now = fingerprint(projectRoot); } catch { /* git could not be read: say nothing about edits */ }
+    if (now && now !== update.fingerprint) parts.push('the uncommitted work has changed since it was read');
+  }
+  return { stale: parts.length > 0, text: parts.length ? parts.join('; ') : 'up to date with git' };
 }
 const fresh = freshness();
 const readAt = update.readAtShort || update.readAt || 'an unknown time';
 
 if (sessionStart) {
-  if (!fresh.behind) process.exit(0);
-  const context = `The project map at .project-map/map.html was read at ${readAt} and is now ${fresh.text}. `
+  if (!fresh.stale) process.exit(0);
+  const context = `The project map at .project-map/map.html was read at ${readAt} and is out of date: ${fresh.text}. `
     + 'Update it with the mapping-progress skill before you answer "where are we?" or start a long stretch of work.';
   console.log(JSON.stringify({ hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext: context } }));
   process.exit(0);
@@ -97,6 +107,6 @@ for (const d of open) {
 if (data.plan && data.plan.approval) lines.push(`Plan ${data.plan.label || data.plan.file}: ${data.plan.approval === 'approved' ? 'approved' : 'awaiting your response'}.`);
 const findings = list(data.findings).length;
 if (findings) lines.push(`${findings} finding${findings === 1 ? '' : 's'} on the map worth a look.`);
-if (fresh.behind) lines.push('The map is behind the code: update it before relying on these statuses.');
+if (fresh.stale) lines.push('The map is out of date with the code: update it before relying on these statuses.');
 
 console.log(lines.join('\n'));

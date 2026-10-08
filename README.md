@@ -20,7 +20,7 @@ The picture above is a real map, drawn by this plugin for a made-up booking app.
 - **Before a long run,** Claude draws the map, so you have something to open while it works.
 - **As work lands,** the map is updated: after each milestone, and whenever you ask.
 - **When you ask "where are we?",** Claude answers from the map: the next milestone, how many items are left, what changed, what is stuck. It reads a short summary of the map instead of the whole data file, so the answer is quick and cheap.
-- **When you open a session and the map is behind the code,** Claude is told so at the start, and updates it before relying on it.
+- **When you open a session and the map is out of date with the code,** Claude is told so at the start, and updates it before relying on it.
 - **For every finished task,** you can open it and see what changed: a short description, whether it is committed and pushed, and the files it touched.
 - **When something needs your call,** it appears on the map as a decision with the default Claude will take if you do not answer.
 
@@ -35,7 +35,7 @@ Five pieces. You only ever type one of them.
 | [`project-map`](./agents/project-map.md) | Agent | Reads the project and writes the map's data. A ready-made page draws it. | When Claude sends it, in the background. |
 | [`mapping-progress`](./skills/mapping-progress/SKILL.md) | Skill | Tells Claude when to update the map and how to answer from it. | On its own: before long runs, after milestones, on "where are we?". |
 | [`grill-page`](./skills/grill-page/SKILL.md) | Skill | Lets you answer Claude's questions about a plan by clicking in a page, in place of typing. | When you say "grill me in a page". |
-| [`hooks.json`](./hooks/hooks.json) | Hook | Tells Claude when a session starts and the map is behind git. Silent otherwise, and when the project has no map. | At the start of each session. |
+| [`hooks.json`](./hooks/hooks.json) | Hook | Tells Claude when a session starts and the map is out of date: a different commit is checked out, or the uncommitted work has changed since the map was read. Silent otherwise, and when the project has no map. | At the start of each session. |
 | [`setup`](./skills/setup/SKILL.md) | Skill | One-time setup: checks for Node and the companion skills, saves your map style, adds a one-line pointer to your `CLAUDE.md`, and offers a first map. Safe to run again. | Only when you type it. |
 
 The map and the grilling page are separate tools that share a plugin because they are two ends of the same job: deciding what to build, then seeing how the build is going.
@@ -95,7 +95,7 @@ Everything is clickable. Parts, tasks, milestone items and decisions open their 
 
 **Two files.** `.project-map/map.html` is the page, the same for every project. `.project-map/map-data.js` is your project. Milestones live in the data file; edit them there and the agent keeps your edits. A page opened from disk cannot save itself, so your picks on decisions collect in one block of answers under the decision list. Press **Copy answers** and paste it to Claude once. Picks survive the page's own reloads, and each one clears itself once the map records your answer.
 
-**It stays current.** Leave the map open in a tab. It reloads itself when the data changes. In a terminal, `node <plugin>/map/status.mjs` prints the same state in a few lines, and says how many commits the map is behind.
+**It stays current.** Leave the map open in a tab. It reloads itself when the data changes. In a terminal, `node <plugin>/map/status.mjs` prints the same state in a few lines, and says whether the map is out of date with the code.
 
 **Status comes from the code.** A detailed plan does not count as progress, and an unanswered plan does not reset work that exists. Whether a plan is approved is shown separately.
 
@@ -126,7 +126,7 @@ That boundary is an instruction in the agent's prompt, not a sandbox. The agent 
 ## Limits
 
 - Statuses come from what the agent reads: commits, code, issues, plans. It does not run your tests, so "done" means the evidence says so.
-- The map is a snapshot. On a fast-moving branch it can be a task behind by the time it is written. A new session is told when the map is behind; a running one is not.
+- The map is a snapshot. On a fast-moving branch it can be a task behind by the time it is written. A new session is told when the map is out of date; a running one is not.
 - `.grill/` and `.project-map/` are ignored by git, so the decisions file and the map stay on your machine. Copy `decisions.md` into your docs if the team needs it.
 - Every project gets the same page. The layout does not adapt to the project beyond an added table or list.
 - The agent runs on Sonnet by default. It judges status from what it reads, and on a large or tangled project it can group things in a way you would not. Edit the data file, or tell Claude, and it keeps your version.

@@ -1,5 +1,9 @@
 # build-compass
 
+## 0.2.2
+
+- **The map knows when it is out of date.** 0.2.0 compared only how many commits HEAD was ahead of the map. Checking out an older commit read as up to date, uncommitted edits never counted, and uncommitted work the map had already recorded counted as new. `gather.mjs` now records a fingerprint of the uncommitted work, the agent stores it with the commit, and `status.mjs` and the session-start hook call the map out of date when the checkout is at any other commit or the fingerprint differs.
+
 ## 0.2.1
 
 - **Installing the plugin installs nothing.** 0.2.0 listed Playwright as a dev dependency, and installing the plugin ran `npm install`, which added 19 MB of test tooling to every install. The page tests now get Playwright only where they run.

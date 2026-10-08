@@ -29,7 +29,7 @@ Outside the project you write only to your own memory. Bash is for reading (`git
 
 The scripts ship with this plugin in `${CLAUDE_PLUGIN_ROOT}/map/`. If that folder does not exist, use `~/.claude/project-map/`. Below, `<map>` is whichever one exists. Run every command from the project root.
 
-1. **Copy the page.** Copy `<map>/map.html` over `.project-map/map.html` every run, so the page stays current. If it does not exist, stop and say the page is missing.
+1. **Copy the page.** Copy `<map>/map.html` over `.project-map/map.html` every run, so the page stays current. If it does not exist, stop and say the page is missing. Add the `.gitignore` line now, if it is missing, so that it is in place before step 3 reads the working tree.
 2. **Read the previous data,** if `.project-map/map-data.js` exists. It is your baseline, and the owner edits it: their milestones, wording and answered decisions are authoritative. Copy it to `.project-map/history/map-data-<YYYYMMDD-HHMM>.js`. On a first map, create `.project-map/history/` empty.
 3. **Gather the git facts:** `node "<map>/gather.mjs" --since <update.commit from the previous data>`, or with no `--since` on a first map. It prints HEAD, the branch, the push state, each commit with its files and line counts, and the uncommitted files with theirs. See "What each task changed".
 4. **Read the plan,** if there is one. See "Plans written with html-plan".
@@ -86,7 +86,7 @@ Every task that is done or in progress carries one or more work records:
 
 **Work in other worktrees.** `worktrees` lists the other checkouts of the repo, each on its own branch: parallel subagents, or the owner's own work. Their commits in `commitsAhead` and files in `uncommitted` are not on this checkout yet. Tie them to tasks the same way, and make each one its own work record with `"worktree"` set to the worktree's `path` and `branch` named in `link`. Such a task is `in-progress` at most: it is done only once its work is on this checkout's branch. A worktree with `mergedIntoHead` true and nothing uncommitted holds nothing new; leave it out.
 
-Take `update.readAt`, `readAtShort`, `branch`, `commit` (`head`) and `pushNote` from the same output. If it has a `sinceNote`, the previous map's commit is gone: say so in `changedNote` and rebuild every work record.
+Take `update.readAt`, `readAtShort`, `branch`, `commit` (`head`), `fingerprint` and `pushNote` from the same output. The fingerprint tells `status.mjs` whether the uncommitted work has changed since this read, so copy it exactly. If it has a `sinceNote`, the previous map's commit is gone: say so in `changedNote` and rebuild every work record.
 
 Uncommitted changes you cannot tie to one task go in `unassigned`, once, not guessed onto a task. Never invent a file list or a hash: `check.mjs` refuses any hash or path that git does not know.
 
@@ -161,6 +161,7 @@ window.PROJECT_MAP = {
     "readAtShort": "7 Oct 2026, 21:12",
     "branch": "main",
     "commit": "5acaf14",              // HEAD when you read
+    "fingerprint": "9c1e04b7a2d35f60", // from gather.mjs
     "uncommittedWork": true,
     "pushNote": "5 commits on main, none pushed (no remote)",
     "testsRun": false,

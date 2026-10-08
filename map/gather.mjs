@@ -1,11 +1,13 @@
 #!/usr/bin/env node
 // Gathers the git facts a map needs and prints them as JSON: HEAD, push state, commits with
-// their files, uncommitted work, and the work in other worktrees. Run it from the project root.
+// their files, uncommitted work, a fingerprint of that work, and the work in other worktrees.
+// Run it from the project root.
 //   node gather.mjs [--since <commit>] [--limit 20]
 // Every hash, path and line count in the output comes from git or the file on disk.
 import { execFileSync } from 'node:child_process';
 import { readFileSync, statSync, existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { fingerprint } from './fingerprint.mjs';
 
 const argv = process.argv.slice(2);
 const opt = (name) => { const i = argv.indexOf(name); return i >= 0 ? argv[i + 1] : undefined; };
@@ -186,5 +188,6 @@ console.log(JSON.stringify({
   ...(sinceNote ? { sinceNote } : {}),
   commits,
   uncommitted: readUncommitted(here, Boolean(head)),
+  fingerprint: fingerprint(here),
   ...(worktrees.length ? { worktrees } : {}),
 }, null, 2));

@@ -99,3 +99,21 @@ test('work in another worktree shows its commits ahead and its uncommitted files
   assert.deepEqual(wt.commitsAhead.map((c) => c.subject), ['2.1: list']);
   assert.deepEqual(wt.uncommitted.map((f) => [f.path, f.kind]), [['list.js', 'edited']]);
 });
+
+test('the fingerprint is stable, changes with any edit, and ignores the map folders', (t) => {
+  const dir = repo(t);
+  write(dir, 'a.txt', 'a\n');
+  commit(dir, 'start');
+  write(dir, 'wip.txt', 'w\n');
+  const first = gather(dir).fingerprint;
+  assert.match(first, /^[0-9a-f]{16}$/);
+  assert.equal(gather(dir).fingerprint, first, 'the same tree gives the same fingerprint');
+  write(dir, '.project-map/map-data.js', 'window.PROJECT_MAP = {};');
+  write(dir, '.grill/grill-data.js', 'window.GRILL = {};');
+  assert.equal(gather(dir).fingerprint, first, 'the map folders are left out');
+  write(dir, 'wip.txt', 'w2\n');
+  const edited = gather(dir).fingerprint;
+  assert.notEqual(edited, first, 'editing an untracked file changes it');
+  write(dir, 'a.txt', 'b\n');
+  assert.notEqual(gather(dir).fingerprint, edited, 'editing a tracked file changes it');
+});
