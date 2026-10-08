@@ -61,6 +61,18 @@ test('each listed command runs once per state of the code, and its last line is 
   assert.equal(edited.out.at, `${p.head} plus uncommitted work`);
 });
 
+test('the summary is the line that counts results, not a duration or a rule after it', (t) => {
+  const prints = (lines, code = 0) => `node -e "${lines.map((line) => `console.log('${line}')`).join(';')};process.exit(${code})"`;
+  const p = project(t, [
+    { name: 'Node runner', run: prints(['i tests 3', 'i pass 3', 'i fail 0', 'i duration_ms 12.5']) },
+    { name: 'Node runner failing', run: prints(['i tests 3', 'i pass 2', 'i fail 1', 'i duration_ms 12.5'], 1) },
+    { name: 'Maven', run: prints(['[INFO] Tests run: 12, Failures: 0, Errors: 0, Skipped: 0', '[INFO] BUILD SUCCESS', '[INFO] ------']) },
+    { name: 'No counts', run: prints(['compiled', 'all good']) },
+  ]);
+  assert.deepEqual(runChecks(p).out.results.map((r) => r.summary),
+    ['i pass 3', 'i fail 1', '[INFO] Tests run: 12, Failures: 0, Errors: 0, Skipped: 0', 'all good']);
+});
+
 test('a list that git tracks is refused, and a command that overruns its time fails', (t) => {
   const slow = project(t, [{ name: 'Slow', run: `node -e "setTimeout(()=>{},20000)"`, timeoutSeconds: 1 }]);
   const overran = runChecks(slow);

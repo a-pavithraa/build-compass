@@ -1,5 +1,10 @@
 # build-compass
 
+## 0.3.6
+
+- **A check's summary says how the tests went.** The summary was the last line a check command printed, and many test runners end on a duration or a rule: Node's own runner showed `duration_ms 139.6`, Maven a row of dashes. The summary is now the line that counts results, the last one counting passes for a passed check and the last counting failures for a failed one. With no such line it is the last line, as before.
+- **New pictures in the README.** Both are from a fresh map of the example booking app, and show the checks that ran, a task's before, now and try it, and the code it runs through for a check by hand.
+
 ## 0.3.5
 
 - **A run of checks shows its progress.** `run-checks.mjs` printed nothing until the last check had finished, so a few minutes of tests looked stuck. It now says when each check starts and ends, when a result is reused, and when a check is left for the next run. The lines go to stderr; the result on stdout is unchanged.

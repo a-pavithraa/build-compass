@@ -63,9 +63,17 @@ const dirty = git('status', '--porcelain', '--', '.', ':!.project-map', ':!.gril
 const before = argv.includes('--force') ? null : readSaved(mapDir);
 const current = before && before.commit === commit && before.fingerprint === print ? before.results : [];
 
-function lastLine(text) {
+// A test runner often ends on a duration or a rule, so the line that counts results is preferred over the
+// last one: for a passed check the last line counting passes, for a failed one the last counting failures.
+const COUNTS = {
+  passed: /\d+\s+pass(ed)?\b|\bpass(ed)?[:\s]+\d+/i,
+  failed: /\d+\s+(fail(ed|ures?)?|errors?)\b|\b(fail(ed|ures?)?|errors?)[:\s]+\d+/i,
+};
+function summaryOf(text, result) {
   const lines = String(text || '').replace(/\x1b\[[0-9;]*[A-Za-z]/g, '').split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
-  return (lines.pop() || '').slice(0, 160);
+  const counting = (pattern) => lines.findLast((line) => pattern.test(line));
+  const line = counting(COUNTS[result]) || counting(COUNTS.passed) || counting(COUNTS.failed) || lines.at(-1) || '';
+  return line.replace(/^[^\w[(]+/, '').slice(0, 160);
 }
 
 // Run without waiting on the shell alone: when time runs out, everything the command started has to go
@@ -97,7 +105,10 @@ function runOne(check) {
     child.on('close', (code) => {
       clearTimeout(timer);
       if (timedOut) resolve({ result: 'failed', summary: `timed out after ${seconds} s`, seconds: took() });
-      else resolve({ result: code === 0 ? 'passed' : 'failed', summary: lastLine(out) || lastLine(err) || `exit code ${code}`, seconds: took() });
+      else {
+        const result = code === 0 ? 'passed' : 'failed';
+        resolve({ result, summary: summaryOf(out, result) || summaryOf(err, result) || `exit code ${code}`, seconds: took() });
+      }
     });
   });
 }

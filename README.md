@@ -1,6 +1,6 @@
 # build-compass
 
-![A project map for a small booking app: four parts with their statuses, the next milestone and a suggested next step](docs/example-map.png)
+![A project map for a small booking app: six parts with their statuses, the next milestone, a suggested next step, two decisions and the check that ran](docs/example-map.png)
 
 **Know where your project stands without reading the transcript.**
 
@@ -25,7 +25,7 @@ The picture above is a real map, drawn by this plugin for a made-up booking app.
 - **When you come back to the map,** it lists what moved since you last looked, however many updates happened in between.
 - **When something needs your call,** it appears on the map as a decision with the default Claude will take if you do not answer.
 
-![A task opened on the map, showing what changed, its commit state and the files it touched](docs/example-task.png)
+![A task opened on the map, showing what was true before and now, one way to try it, the check that ran, and the code it runs through for checking it by hand](docs/example-task.png)
 
 ## What is in the plugin
 
