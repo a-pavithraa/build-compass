@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Reminders Plan</title>
+<link rel="stylesheet" href="htmlplan.css">
+<script src="htmlplan.js" defer></script>
+<body>
+<header>
+  <h1>Text Reminders in Slotbook</h1>
+</header>
+<main>
+<doc-plan>
+  <!-- <doc-claim> inside a comment is not a claim -->
+  <doc-claim>
+    <p>A customer gets a text the day before the booking.</p>
+    <doc-mock frame="none" w="300"><template><p>Reminder: haircut tomorrow at 10:00</p></template></doc-mock>
+    <doc-claim>
+      <p>A nightly job sends the reminders &amp; marks them sent.</p>
+      <doc-calls title="Job" caption="One job, once a night.">
+<script type="text/plain">
++ **sendReminders**(now)                 @ src/jobs/reminders.js:4
+    smsProvider.send(to, body)           @ src/sms.js:12
+</script>
+      </doc-calls>
+      <doc-claim at="src/jobs/reminders.js:4">
+        <p><b>reminders.js:4</b> · sendReminders()</p>
+        <doc-code title="reminders.js · sketch" lang="js"><script type="text/plain">export function sendReminders(now) { /* <doc-claim> in code is not a claim */ }</script></doc-code>
+      </doc-claim>
+    </doc-claim>
+    <doc-claim>
+      <p>A failed text is tried once more.</p>
+      <doc-code title="retry · sketch" lang="js"><script type="text/plain">retry(1)</script></doc-code>
+      <doc-ask id="retry">
+        <p>Should a failed text retry?</p>
+        <label><input type="radio" name="retry" value="once" checked> Once, after an hour</label>
+        <label><input type="radio" name="retry" value="no"> No <small>claim 1.2 goes</small></label>
+      </doc-ask>
+    </doc-claim>
+  </doc-claim>
+  <doc-claim id="optout">
+    <p>A customer can stop the texts.</p>
+    <doc-mock frame="none" w="300"><template><p>Reply STOP</p></template></doc-mock>
+  </doc-claim>
+  <doc-claim aux="shared">
+    <p>Shared: one new column.</p>
+    <doc-schema lang="sql" title="bookings"><script type="text/plain">ALTER TABLE bookings ADD reminded_at timestamptz;</script></doc-schema>
+  </doc-claim>
+  <doc-claim aux="scope">
+    <p>Not changing: booking, payments.</p>
+    <ul>
+      <li>Booking keeps its flow.</li>
+      <li>No payment reminders.</li>
+    </ul>
+  </doc-claim>
+</doc-plan>
+</main>
+</body>
+</html>

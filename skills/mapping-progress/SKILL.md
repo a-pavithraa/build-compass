@@ -36,7 +36,9 @@ The agent needs a theme and an accent color, asked once and saved to its memory.
 
 ## Answering "where are we?"
 
-Answer from the map: the next milestone, how many items are left, what changed, what is stuck and on what, and the open decisions. If the map is missing, or older than the latest work, update it first and say that you did.
+Answer from the map: the next milestone, how many items are left, what changed, what is stuck and on what, and the open decisions. Get these by running `node <plugin>/map/status.mjs` from the project root, where `<plugin>` is two folders up from this skill's base directory (`~/.claude/project-map/status.mjs` for a manual install). It prints them in a few lines and says how far the map is behind git, so you do not read `map-data.js` whole. Read the data file only for the detail of one item.
+
+If the map is missing, or `status.mjs` says it is behind the code, update it first and say that you did. A session that starts with a stale map gets a note saying so.
 
 Follow the map's suggested next step unless the user has said otherwise.
 

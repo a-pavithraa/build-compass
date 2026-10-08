@@ -33,13 +33,21 @@ if (tryGit('rev-parse', '--is-inside-work-tree') !== 'true') {
 const head = tryGit('rev-parse', '--short', 'HEAD');
 const branch = tryGit('symbolic-ref', '--short', '-q', 'HEAD') || (head ? '(detached)' : null);
 const upstream = head ? tryGit('rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}') : null;
-const remoteName = upstream ? upstream.split('/')[0] : 'origin';
-const remoteUrl = tryGit('remote', 'get-url', remoteName);
+const remotes = (tryGit('remote') || '').split('\n').filter(Boolean);
+// A commit counts as pushed when any remote-tracking branch has it, as of the last fetch:
+// a branch with no upstream can still be pushed elsewhere, as `git push <remote> release:main` does.
+const unpushed = new Set(head && remotes.length ? (tryGit('rev-list', 'HEAD', '--not', '--remotes') || '').split('\n').filter(Boolean) : []);
+const isPushed = (full) => remotes.length > 0 && !unpushed.has(full);
+const remoteBranchesWithHead = head && remotes.length
+  ? (tryGit('branch', '-r', '--contains', 'HEAD', '--format=%(refname:short)') || '').split('\n').filter((b) => b.includes('/') && !b.endsWith('/HEAD'))
+  : [];
+const remoteName = upstream ? upstream.split('/')[0]
+  : (remoteBranchesWithHead[0] || '').split('/')[0] || (remotes.includes('origin') ? 'origin' : remotes[0]);
+const remoteUrl = remoteName ? tryGit('remote', 'get-url', remoteName) : null;
 const github = (() => {
   const m = remoteUrl && remoteUrl.match(/github\.com[:/]([^/]+)\/(.+?)(?:\.git)?\/?$/);
   return m ? `https://github.com/${m[1]}/${m[2]}` : null;
 })();
-const unpushed = new Set(upstream ? (tryGit('rev-list', `${upstream}..HEAD`) || '').split('\n').filter(Boolean) : []);
 
 // Turns `--numstat --summary` output into one entry per file.
 function parseChanges(lines) {
@@ -120,7 +128,7 @@ if (head) {
     if (tryGit('cat-file', '-e', `${since}^{commit}`) !== null) range = [`${since}..HEAD`];
     else sinceNote = `Commit ${since} was not found (rebased or reset?); listed the last ${limit} commits instead.`;
   }
-  commits = readCommits(here, range, (full) => (upstream ? !unpushed.has(full) : false));
+  commits = readCommits(here, range, isPushed);
 }
 
 // Other worktrees hold work in flight on their own branches: parallel subagents, or the owner's own.
@@ -139,7 +147,8 @@ function readWorktrees() {
       head: w.head ? w.head.slice(0, 7) : null,
     };
     if (w.prunable || !existsSync(w.path)) return { ...base, note: 'The worktree folder is missing.' };
-    const ahead = head && w.head ? readCommits(here, [`HEAD..${w.head}`], () => false) : [];
+    const notOnRemote = new Set(remotes.length ? (tryGit('rev-list', w.head, '--not', '--remotes') || '').split('\n').filter(Boolean) : []);
+    const ahead = head && w.head ? readCommits(here, [`HEAD..${w.head}`], (full) => remotes.length > 0 && !notOnRemote.has(full)) : [];
     const merged = head && w.head ? tryGit('merge-base', '--is-ancestor', w.head, 'HEAD') !== null : false;
     return { ...base, mergedIntoHead: merged, commitsAhead: ahead, uncommitted: readUncommitted(w.path, Boolean(w.head)) };
   });
@@ -159,11 +168,12 @@ function shortTime(d) {
 }
 
 const now = new Date();
-const ahead = upstream ? unpushed.size : null;
+const ahead = unpushed.size;
+const shown = remoteBranchesWithHead.slice(0, 3).join(', ') + (remoteBranchesWithHead.length > 3 ? ', …' : '');
 const pushNote = !head ? 'No commits yet.'
-  : !upstream ? `Not pushed: ${remoteUrl ? `${branch} has no upstream branch` : 'the repo has no remote'}.`
-  : ahead === 0 ? `Up to date with ${upstream}.`
-  : `${ahead} commit${ahead === 1 ? '' : 's'} on ${branch} not pushed to ${upstream}.`;
+  : !remotes.length ? 'Not pushed: the repo has no remote.'
+  : ahead === 0 ? (upstream ? `Up to date with ${upstream}.` : `Every commit is on a remote (${shown || 'a remote branch'}); ${branch} has no upstream branch.`)
+  : `${ahead} commit${ahead === 1 ? '' : 's'} on ${branch} ${ahead === 1 ? 'is' : 'are'} on no remote${upstream ? ` (upstream ${upstream})` : ''}, as of the last fetch.`;
 
 const worktrees = readWorktrees();
 console.log(JSON.stringify({

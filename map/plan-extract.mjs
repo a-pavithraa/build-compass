@@ -157,9 +157,10 @@ for (const claim of claims) {
   if (claim.id) continue;
   const parentId = claim.parent ? claim.parent.id || null : null;
   const near = free()
-    .filter((e) => e.parent === parentId)
-    .map((e) => ({ e, score: overlap(e.text, claim.text) + (e.position === claim.position ? 0.15 : 0) }))
-    .filter((x) => x.score >= 0.5)
+    .filter((e) => e.depth === undefined || e.depth === claim.depth)
+    .map((e) => ({ e, words: overlap(e.text, claim.text) }))
+    .filter((x) => x.words >= 0.5)
+    .map((x) => ({ e: x.e, score: x.words + (x.e.parent === parentId ? 0.2 : 0) + (x.e.position === claim.position ? 0.15 : 0) }))
     .sort((x, y) => y.score - x.score);
   if (near.length && (near.length === 1 || near[0].score > near[1].score)) assign(claim, near[0].e, 'similar');
 }
@@ -206,7 +207,7 @@ if (write && indexPath) {
   index = {
     plan: planKey,
     file, hash,
-    claims: claims.map((c) => ({ id: c.id, htmlId: c.htmlId, number: c.number, parent: c.parent ? c.parent.id : null, position: c.position, at: c.at, text: c.text })),
+    claims: claims.map((c) => ({ id: c.id, htmlId: c.htmlId, number: c.number, parent: c.parent ? c.parent.id : null, depth: c.depth, position: c.position, at: c.at, text: c.text })),
   };
   writeFileSync(indexPath, JSON.stringify(index, null, 2) + '\n');
 }

@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "command -v node >/dev/null 2>&1 && [ -f \"${CLAUDE_PLUGIN_ROOT}/map/status.mjs\" ] && node \"${CLAUDE_PLUGIN_ROOT}/map/status.mjs\" --session-start || true",
+            "timeout": 5,
+            "statusMessage": "Checking the project map"
+          }
+        ]
+      }
+    ]
+  }
+}

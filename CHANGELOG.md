@@ -1,6 +1,6 @@
 # build-compass
 
-## Unreleased
+## 0.2.0
 
 - **Renamed to build-compass.** The plugin and its repository were called `project-map`. The plugin holds more than the map, and a different `project-map` skill draws code dependency graphs. Install with `build-compass@a-pavithraa`; commands start with `/build-compass:`. The agent, the skills and the `.project-map/` folder keep their names.
 - **Plan responses are kept.** When you paste your response to an html-plan plan, the agent saves it in `.project-map/plan-responses/` with a hash of the plan. Later updates still know the plan was answered. If the plan changes after the response, the map shows it as awaiting you again.
@@ -10,6 +10,12 @@
 - **Copy all answers on the map.** Picks on the map's decisions collect in one block under the decision list, copied with one button and pasted once, in place of one line per decision. Unpicked decisions are listed with the default that stands. Picks are kept in the browser across the page's reloads and drop out once the map records the answer.
 - **Plans link packed.** The map links to `plan.packed.html` when it exists, because an unpacked plan opens unstyled outside html-plan's folder.
 - **Worktrees on the map.** `gather.mjs` reports the work in other git worktrees, and the agent shows it as in progress on its branch. `mapping-progress` runs one map update at a time.
+- **Where are we, in a few lines.** `map/status.mjs` prints the next milestone, items left, next step, what changed, what is stuck and the open decisions, and how far the map is behind git. Claude answers "where are we?" from it instead of reading the whole data file.
+- **A stale map is noticed.** A `SessionStart` hook tells Claude when the project's map is behind git, so it updates the map before relying on it. It is silent when the map is current or there is none.
+- **Pushed means on any remote.** A commit counts as pushed when any remote has it, so a branch pushed with `git push <remote> local:main` and no upstream no longer shows as unpushed.
+- **Steadier claim ids.** A lightly reworded claim keeps its id even when its parent claim was rewritten.
+- **Tests, run on every push.** `npm test` covers the four map scripts against throwaway git repositories, the map page's answers in a headless browser, and the data example in the agent's prompt, which must pass `check.mjs`. GitHub Actions runs them on every push.
+- **The prompt's data example holds together.** It named tasks it never defined and gave an unpushed commit a link; both are fixed, and a test keeps it that way.
 - **`check.mjs` checks against git.** Every commit hash and file path on the map must exist in the repository or on disk. It also checks that read-only decisions say where they are answered and that `plan.approval` is valid, and notes when `history/` holds more than 20 files.
 
 ## 0.1.0

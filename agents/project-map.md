@@ -157,7 +157,7 @@ window.PROJECT_MAP = {
   "update": {
     "version": 2,                     // 1 on the first map, then previous + 1
     "first": false,
-    "readAt": "2026-10-07 21:12 +05:30",   // the real time now, from `date`, never a guess
+    "readAt": "2026-10-07 21:12 +05:30",   // readAt and readAtShort come from gather.mjs, never a guess
     "readAtShort": "7 Oct 2026, 21:12",
     "branch": "main",
     "commit": "5acaf14",              // HEAD when you read
@@ -174,7 +174,7 @@ window.PROJECT_MAP = {
   "next": { "step": "Commit the double-booking check for T3", "reason": "It is the only work that exists just in the working tree.", "open": "T3" },
 
   "milestones": [
-    { "id": "M1", "name": "A customer can book a slot", "source": "From docs/plan.md", "proposed": false, "tasks": ["T1", "T3"] }
+    { "id": "M1", "name": "A customer can book a slot", "source": "From docs/plan.md", "proposed": false, "tasks": ["T3"] }
   ],
 
   "parts": [
@@ -194,7 +194,7 @@ window.PROJECT_MAP = {
       "part": "P3", "milestone": "M1", "status": "in-progress",
       "reason": "One line.",
       "evidence": ["Commit 58530c8 says: no double-booking check yet.", "The tests were not run for this map."],
-      "needs": ["T1"], "unlocks": [], "decisions": ["D1"],
+      "needs": [], "unlocks": ["T6"], "decisions": ["D1"],
       "work": [
         { "state": "uncommitted", "inferred": true,
           "link": "The change removes the TODO(T3) marker.",
@@ -204,10 +204,13 @@ window.PROJECT_MAP = {
         { "state": "committed", "inferred": true,
           "link": "The commit message starts with T3.",
           "description": "Adds confirming: a held slot becomes a booking.",
-          "commits": [ { "hash": "58530c8", "date": "2026-10-05 10:20", "subject": "T3: confirm a held slot", "url": "https://github.com/owner/repo/commit/58530c8" } ],
+          "commits": [ { "hash": "58530c8", "date": "2026-10-05 10:20", "subject": "T3: confirm a held slot" } ],
           "pushed": false, "pushedNote": "Not pushed: the repo has no remote.",
           "files": [ { "path": "src/bookings.js", "kind": "new", "added": 19, "removed": 0 } ] }
-      ] }
+      ] },
+    { "id": "T6", "label": "T6", "name": "Send the reminder text", "part": "P5", "status": "stuck",
+      "reason": "No test message can be sent yet.", "waitingOn": "The provider approving the sender account.",
+      "needs": ["T3"] }
   ],
   "dependencyNote": "Needs and unlocks are read from the plan's wording.",
 
@@ -232,7 +235,7 @@ window.PROJECT_MAP = {
 
   "panels": [                          // optional, see below
     { "title": "Screens", "hint": "What people will see", "kind": "table",
-      "columns": ["Who", "Sees", "Built by"], "rows": [["Customer", "The slot picker", "T1"]] },
+      "columns": ["Who", "Sees", "Built by"], "rows": [["Customer", "The slot picker", "T3"]] },
     { "title": "Risks", "kind": "list", "items": [ { "title": "One line", "text": "A sentence.", "refs": ["T3"] } ] }
   ]
 };
