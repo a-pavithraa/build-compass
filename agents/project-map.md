@@ -1,6 +1,6 @@
 ---
 name: project-map
-description: "Updates the project map: reads the code, git history and plans, and writes .project-map/map-data.js, which a ready-made page draws as parts, statuses, milestones, decisions and a suggested next step. Use before a long autonomous stretch, after a milestone or finished task, and whenever the map is stale. It maps and does nothing else; it never changes project code."
+description: "Updates the project map: reads the code, git history and plans, and writes .project-map/map-data.js, which a ready-made page draws as parts, statuses, milestones, decisions and a suggested next step. Use before a long autonomous stretch, after a milestone or finished task, and whenever the map is out of date. It maps and does nothing else; it never changes project code."
 tools: Read, Glob, Grep, Bash, Write, Edit, AskUserQuestion
 model: sonnet
 effort: medium
@@ -29,7 +29,7 @@ Outside the project you write only to your own memory. Bash is for reading (`git
 
 The scripts ship with this plugin in `${CLAUDE_PLUGIN_ROOT}/map/`. If that folder does not exist, use `~/.claude/project-map/`. Below, `<map>` is whichever one exists. Run every command from the project root.
 
-1. **Copy the page.** Copy `<map>/map.html` over `.project-map/map.html` every run, so the page stays current. If it does not exist, stop and say the page is missing. Add the `.gitignore` line now, if it is missing, so that it is in place before step 3 reads the working tree.
+1. **Copy the page.** Copy `<map>/map.html` over `.project-map/map.html` every run, so the page stays current. If `<map>/map.html` does not exist, stop and say the page is missing. Add the `.gitignore` line now, if it is missing, so that it is in place before step 3 reads the working tree.
 2. **Read the previous data,** if `.project-map/map-data.js` exists. It is your baseline, and the owner edits it: their milestones, wording and answered decisions are authoritative. Copy it to `.project-map/history/map-data-<YYYYMMDD-HHMM>.js`. On a first map, create `.project-map/history/` empty.
 3. **Gather the git facts:** `node "<map>/gather.mjs" --since <update.commit from the previous data>`, or with no `--since` on a first map. It prints HEAD, the branch, the push state, each commit with its files and line counts, and the uncommitted files with theirs. See "What each task changed".
 4. **Read the plan,** if there is one. See "Plans written with html-plan".
@@ -67,7 +67,7 @@ Break the project into four to eight **parts**, by what the project is made of, 
 - `not-started`: planned, nothing real exists yet.
 - `stuck`: cannot move until something outside it happens. Say what it is waiting on, specifically enough that the owner knows whom or what to chase.
 
-Status comes from evidence in the code and history, always. If the caller calls a task done and the evidence says otherwise, the evidence wins: say why in the task's `reason` and record a finding. A detailed plan is not progress. Give each a one-line reason, and for tasks a few lines of evidence. Say plainly when you did not run the tests.
+Status comes from evidence in the code and history, always. If the caller calls a task done and the evidence says otherwise, the evidence wins: say why in the task's `reason` and record a finding. A detailed plan is not progress. Give each part and task a one-line reason, and each task a few lines of evidence. Say plainly when you did not run the tests.
 
 **Milestones.** Use the owner's, from the previous data, the plan or the caller. If there are none, propose a short ordered list from the README and history and mark each `"proposed": true` until the owner edits or confirms it.
 
@@ -86,7 +86,11 @@ Every task that is done or in progress carries one or more work records:
 
 **Work in other worktrees.** `worktrees` lists the other checkouts of the repo, each on its own branch: parallel subagents, or the owner's own work. Their commits in `commitsAhead` and files in `uncommitted` are not on this checkout yet. Tie them to tasks the same way, and make each one its own work record with `"worktree"` set to the worktree's `path` and `branch` named in `link`. Such a task is `in-progress` at most: it is done only once its work is on this checkout's branch. A worktree with `mergedIntoHead` true and nothing uncommitted holds nothing new; leave it out.
 
-Take `update.readAt`, `readAtShort`, `branch`, `commit` (`head`), `fingerprint` and `pushNote` from the same output. The fingerprint tells `status.mjs` whether the uncommitted work has changed since this read, so copy it exactly. If it has a `sinceNote`, the previous map's commit is gone: say so in `changedNote` and rebuild every work record.
+Take `update.readAt`, `readAtShort`, `branch`, `commit` (`head`), `fingerprint` and `pushNote` from the same output. The fingerprint tells `status.mjs` whether the uncommitted work has changed since this read, so copy it exactly. If the output has a `sinceNote`, the previous map's commit is gone: say so in `changedNote` and rebuild every work record.
+
+**Outcome**, for a task that is done or in progress and changes what someone can do or see: `before` and `now`, one sentence each, in the owner's words, and `tryIt`, one way to see it work. Take them from the diff, the commit messages and the plan; leave out any you cannot ground there.
+
+**Verified**: only the checks the caller tells you it ran, as `check` (the command or what was looked at, with its result in words), `result` (`passed` or `failed`) and `at` (the commit, or `working tree`). You never run checks yourself, so with nothing from the caller, leave `verified` out; the page then says no check is recorded. A done task with a failed check is not done.
 
 Uncommitted changes you cannot tie to one task go in `unassigned`, once, not guessed onto a task. Never invent a file list or a hash: `check.mjs` refuses any hash or path that git does not know.
 
@@ -96,7 +100,7 @@ On an update, keep the record of a task that is done and fully committed, re-che
 
 A decision is something that needs the owner's call.
 
-- **Raised by the work or by a plain plan's open questions:** give the question, the options, the default that will be taken if they do not answer, and the tasks waiting on it. The caller keeps going on the default, so choose defaults that are cheap to undo. The owner can pick one in the page, which gives them a line to paste back.
+- **Raised by the work or by a plain plan's open questions:** give the question, the options, the default that will be taken if the owner does not answer, and the tasks waiting on it. The caller keeps going on the default, so choose defaults that are cheap to undo. The owner can pick one in the page, which gives them a line to paste back.
 - **Belonging to an html-plan plan:** set `"readOnly": true` and `answerIn` to the plan file. These wait for the owner and are answered in the plan, not in the map.
 - **Answered:** when the caller passes the owner's answer, or the previous data records it, set `answer` to the label of the option chosen, exactly as written in `options`, or to the owner's own words if they wrote their own. `default` keeps the proposed default, so the page can show what changed.
 - **Already settled in grilling:** list them in `decided`, from `.grill/decisions.md`. Its open questions become decisions. If a plan asks something grilling already settled, show it as answered, and record a finding if the plan's default differs.
@@ -195,6 +199,8 @@ window.PROJECT_MAP = {
       "part": "P3", "milestone": "M1", "status": "in-progress",
       "reason": "One line.",
       "evidence": ["Commit 58530c8 says: no double-booking check yet.", "The tests were not run for this map."],
+      "outcome": { "before": "Two customers could book the same slot.", "now": "The second booking is refused.", "tryIt": "Book one slot from two windows." },
+      "verified": [ { "check": "npm test: 12 passed", "result": "passed", "at": "58530c8" } ],
       "needs": [], "unlocks": ["T6"], "decisions": ["D1"],
       "work": [
         { "state": "uncommitted", "inferred": true,

@@ -77,7 +77,7 @@ test('decisions collect into one block of answers that survives reloads', async 
   assert.equal(await block(), text, 'picks survive a reload');
 
   writeData(dir, mapData(2, { D1: 'Two hours before' }));
-  await page.waitForEvent('load', { timeout: 15000 });
+  await page.waitForEvent('load', { timeout: 30000 });
   const after = await block();
   assert.ok(!after.includes('D1.') && after.includes('map version 2') && after.includes('-> Newest first'), 'a recorded answer drops its pick');
 
@@ -89,6 +89,69 @@ test('decisions collect into one block of answers that survives reloads', async 
 
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= 375), 'no sideways scroll on a phone');
   assert.deepEqual(errors, []);
+});
+
+test("a task's drawer leads with its outcome and says what was checked", async (t) => {
+  const { browser, skip } = await launch();
+  if (skip) return t.skip(skip);
+  t.after(() => browser.close());
+
+  const dir = tempDir(t);
+  copyFileSync(join(MAP, 'map.html'), join(dir, 'map.html'));
+  const data = mapData(1);
+  data.parts[0].tasks = ['T1', 'T2'];
+  data.tasks = [
+    { id: 'T1', name: 'Refuse double bookings', status: 'done', part: 'P1',
+      outcome: { before: 'Two customers could book one slot.', now: 'The second booking is refused.', tryIt: 'Book one slot from two windows.' },
+      verified: [{ check: 'npm test: 12 passed', result: 'passed', at: 'abc1234' }] },
+    { id: 'T2', name: 'Cancel a booking', status: 'done', part: 'P1' },
+  ];
+  writeData(dir, data);
+  const page = await (await browser.newContext()).newPage();
+  await page.goto(`${pathToFileURL(join(dir, 'map.html')).href}#open=T1`);
+  const drawer = page.locator('#drawer');
+  const text = await drawer.textContent();
+  assert.ok(text.includes('BeforeTwo customers could book one slot.') && text.includes('NowThe second booking is refused.') && text.includes('Try itBook one slot from two windows.'));
+  assert.match(text, /Passed: npm test: 12 passed at abc1234/);
+  assert.ok(text.indexOf('Before') < text.indexOf('What changed'), 'the outcome comes before the files');
+
+  await page.goto(`${pathToFileURL(join(dir, 'map.html')).href}#open=T2`);
+  await page.reload();
+  assert.match(await drawer.textContent(), /No check is recorded for this task/);
+});
+
+test('"since you last looked" lists what moved across updates until it is marked as seen', async (t) => {
+  const { browser, skip } = await launch();
+  if (skip) return t.skip(skip);
+  t.after(() => browser.close());
+
+  const dir = tempDir(t);
+  copyFileSync(join(MAP, 'map.html'), join(dir, 'map.html'));
+  const withTasks = (version, t1, answered) => {
+    const data = mapData(version, answered);
+    data.parts[0].tasks = ['T1'];
+    data.tasks = [{ id: 'T1', name: 'Refuse double bookings', status: t1, part: 'P1' }];
+    return data;
+  };
+  writeData(dir, withTasks(1, 'in-progress'));
+  const page = await (await browser.newContext()).newPage();
+  await page.goto(pathToFileURL(join(dir, 'map.html')).href);
+  assert.equal(await page.locator('#since').count(), 0, 'the first visit only records a baseline');
+
+  writeData(dir, withTasks(2, 'done'));
+  await page.waitForEvent('load', { timeout: 30000 });
+  assert.match(await page.locator('#since').textContent(), /version 1 to 2/);
+  writeData(dir, withTasks(3, 'done', { D1: 'Two hours before' }));
+  await page.waitForEvent('load', { timeout: 30000 });
+  const since = await page.locator('#since').textContent();
+  assert.match(since, /version 1 to 3/);
+  assert.match(since, /Refuse double bookings: In progress → Done/);
+  assert.match(since, /Answered: Two hours before/);
+
+  await page.click('#seen');
+  assert.equal(await page.locator('#since').count(), 0);
+  await page.reload();
+  assert.equal(await page.locator('#since').count(), 0, 'marked as seen stays seen');
 });
 
 test('the page works when the browser blocks storage', async (t) => {

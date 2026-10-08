@@ -28,13 +28,17 @@ try {
 }
 
 const projectRoot = dirname(dirname(file));
+// A git command that fails answers null. One that is killed for taking too long throws, so a slow
+// machine reads as "could not compare", never as "up to date". Only the hook has a time limit.
+class GitTooSlow extends Error {}
 const git = (...args) => {
   try {
     return execFileSync('git', ['-c', 'core.fsmonitor=false', '-C', projectRoot, ...args], {
-      encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 4000,
+      encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: sessionStart ? 4000 : undefined,
       env: { ...process.env, GIT_OPTIONAL_LOCKS: '0', GIT_TERMINAL_PROMPT: '0' },
     }).trim();
-  } catch {
+  } catch (err) {
+    if (err.signal || err.code === 'ETIMEDOUT') throw new GitTooSlow();
     return null;
   }
 };
@@ -63,7 +67,13 @@ function freshness() {
   }
   return { stale: parts.length > 0, text: parts.length ? parts.join('; ') : 'up to date with git' };
 }
-const fresh = freshness();
+let fresh;
+try {
+  fresh = freshness();
+} catch (err) {
+  if (!(err instanceof GitTooSlow)) throw err;
+  fresh = { stale: false, text: 'git was too slow to compare the map with the code' };
+}
 const readAt = update.readAtShort || update.readAt || 'an unknown time';
 
 if (sessionStart) {
@@ -105,6 +115,11 @@ for (const d of open) {
     : `Open decision ${d.id}: ${d.question} (if unanswered: ${d.default || 'no default'})`);
 }
 if (data.plan && data.plan.approval) lines.push(`Plan ${data.plan.label || data.plan.file}: ${data.plan.approval === 'approved' ? 'approved' : 'awaiting your response'}.`);
+for (const t of list(data.tasks).filter((x) => list(x.verified).some((v) => v.result === 'failed'))) {
+  lines.push(`Failing check: ${t.label ? `${t.label} ` : ''}${t.name}: ${list(t.verified).find((v) => v.result === 'failed').check}.`);
+}
+const unchecked = list(data.tasks).filter((x) => x.status === 'done' && !list(x.verified).length).length;
+if (unchecked) lines.push(`${unchecked} done task${unchecked === 1 ? ' has' : 's have'} no recorded check.`);
 const findings = list(data.findings).length;
 if (findings) lines.push(`${findings} finding${findings === 1 ? '' : 's'} on the map worth a look.`);
 if (fresh.stale) lines.push('The map is out of date with the code: update it before relying on these statuses.');

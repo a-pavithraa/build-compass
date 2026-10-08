@@ -5,11 +5,16 @@ description: Keep a project map current and answer from it. Use before a long au
 
 # Mapping progress
 
-The **map** is `.project-map/map.html`: one page showing the project's parts, their status, the milestones, the open decisions and a suggested next step. It draws itself from `.project-map/map-data.js` and reloads when that file changes, so the user can leave it open. The `project-map` agent draws it (`build-compass:project-map` when installed as a plugin). You decide when it is drawn and what it is told. Only the agent writes inside `.project-map/`.
+The **map** is `.project-map/map.html`: one page showing the project's parts, their status, the milestones, the open decisions and a suggested next step. It draws itself from `.project-map/map-data.js` and reloads when that file changes, so the user can leave it open. The `project-map` agent writes that data file (`build-compass:project-map` when installed as a plugin). One run of the agent is an **update**; the first update makes the first map. You decide when to dispatch the agent and what to tell it. Only the agent writes inside `.project-map/`.
 
 ## When to update the map
 
-Dispatch the agent in the background, then carry on with the work:
+**How often** is the user's choice, set by the `# Project map` line in their `CLAUDE.md`: after milestones, after every finished task, or only when they ask. With no such line, update after milestones. Each update costs a run of the agent, so:
+
+- **Skip an update that would change nothing.** Run `status.mjs` first (see "Answering"). If it says the map is up to date and no task has finished since, do not dispatch.
+- **Batch close work.** When tasks finish within minutes of each other, give them to the agent in one update.
+
+Within that frequency, dispatch the agent in the background, then carry on with the work:
 
 - **Before a long stretch on your own.** The user should be able to open the map while you work.
 - **After every milestone.**
@@ -18,27 +23,28 @@ Dispatch the agent in the background, then carry on with the work:
 
 **One update at a time.** Two agents writing the map at once overwrite each other. If an update is still running when another is due, do not dispatch a second one. When the running one reports, dispatch one more update, and give it everything that happened in between. When work lands fast, as when parallel subagents merge one after another, this means one update follows another until the work stops.
 
-An update takes about a minute. A map is finished when the agent's report names the next milestone, the items left and a suggested next step. Read the report: it also lists what the agent could not verify.
+An update takes about a minute. An update is finished when the agent's report names the next milestone, the items left and a suggested next step. Read the report: it also lists what the agent could not verify.
 
 ## What to tell the agent
 
 The agent starts with no memory of the session. Give it, each time:
 
 - the project root;
-- every task finished since the last map, with its commits or commit range, or the fact that it is uncommitted. This is what makes the per-task record of files and commit state exact instead of inferred;
+- every task finished since the last update, with its commits or commit range, or the fact that it is uncommitted. This is what makes the per-task record of files and commit state exact instead of inferred;
+- for each of those tasks, the checks you ran on it: the command or what you looked at, whether it passed, and the commit or working tree it ran on. Say so when you ran none. The agent runs no checks itself, so this is the only way the map can show a task works rather than only that its code exists;
 - the path of any html-plan plan. Keep plans inside the project so the map can link to them;
 - the user's pasted response to a plan, in full, the first time you dispatch after they paste it. The agent saves it in `.project-map/plan-responses/`, so later updates know the plan was answered without it being passed again. If you change the plan after the response, the map shows it as awaiting the user again, so say if the user approved the changed plan;
 - anything the user said about milestones or priorities, and any answer they gave to a decision on the map.
 
 ## First map on a machine
 
-The agent needs a theme and an accent color, asked once and saved to its memory. Before the first dispatch, look for a saved style: `style.md` in a folder under `~/.claude/agent-memory/` whose name contains `project-map`. If there is none, ask the user two questions (dark or light; one accent color) and pass the answers to the agent, which saves them. If the agent's report says the style question is still open, do the same and run it again.
+The agent needs a theme and an accent color, asked once and saved to its memory. Before the first dispatch, look for a saved style: `style.md` in a folder under `~/.claude/agent-memory/` whose name contains `project-map`. If there is none, ask the user two questions (dark or light; one accent color) and pass the answers to the agent, which saves them. If the agent's report says the style question is still open, do the same and dispatch the agent again.
 
 ## Answering "where are we?"
 
-Answer from the map: the next milestone, how many items are left, what changed, what is stuck and on what, and the open decisions. Get these by running `node <plugin>/map/status.mjs` from the project root, where `<plugin>` is two folders up from this skill's base directory (`~/.claude/project-map/status.mjs` for a manual install). It prints them in a few lines and says whether the map is out of date with the code, so you do not read `map-data.js` whole. Read the data file only for the detail of one item.
+Answer from the map: the next milestone, how many items are left, what changed, what is stuck and on what, and the open decisions. Get these by running `node <plugin>/map/status.mjs` from the project root, where `<plugin>` is two folders up from this skill's base directory (`~/.claude/project-map/status.mjs` for a manual install). The script prints them in a few lines and says whether the map is out of date with the code, so you do not read `map-data.js` whole. Read the data file only for the detail of one item.
 
-If the map is missing, or `status.mjs` says it is out of date with the code, update it first and say that you did. A session that starts with a stale map gets a note saying so.
+If the map is missing, or `status.mjs` says it is out of date with the code, update it first and say that you did. A session that starts with an out-of-date map gets a note saying so.
 
 Follow the map's suggested next step unless the user has said otherwise.
 

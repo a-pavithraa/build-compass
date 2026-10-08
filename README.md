@@ -18,17 +18,18 @@ The picture above is a real map, drawn by this plugin for a made-up booking app.
 ## What it does for you
 
 - **Before a long run,** Claude draws the map, so you have something to open while it works.
-- **As work lands,** the map is updated: after each milestone, and whenever you ask.
+- **As work lands,** the map is updated: after each milestone, and whenever you ask. Setup lets you choose how often.
 - **When you ask "where are we?",** Claude answers from the map: the next milestone, how many items are left, what changed, what is stuck. It reads a short summary of the map instead of the whole data file, so the answer is quick and cheap.
 - **When you open a session and the map is out of date with the code,** Claude is told so at the start, and updates it before relying on it.
-- **For every finished task,** you can open it and see what changed: a short description, whether it is committed and pushed, and the files it touched.
+- **For every finished task,** you can open it and see what changed: what was true before and what is true now, one way to try it, which checks were run on it, whether it is committed and pushed, and the files it touched.
+- **When you come back to the map,** it lists what moved since you last looked, however many updates happened in between.
 - **When something needs your call,** it appears on the map as a decision with the default Claude will take if you do not answer.
 
 ![A task opened on the map, showing what changed, its commit state and the files it touched](docs/example-task.png)
 
 ## What is in the plugin
 
-Five pieces. You only ever type one of them.
+Six pieces. You only ever type two of them.
 
 | Piece | Kind | What it is for | When it runs |
 |---|---|---|---|
@@ -36,7 +37,8 @@ Five pieces. You only ever type one of them.
 | [`mapping-progress`](./skills/mapping-progress/SKILL.md) | Skill | Tells Claude when to update the map and how to answer from it. | On its own: before long runs, after milestones, on "where are we?". |
 | [`grill-page`](./skills/grill-page/SKILL.md) | Skill | Lets you answer Claude's questions about a plan by clicking in a page, in place of typing. | When you say "grill me in a page". |
 | [`hooks.json`](./hooks/hooks.json) | Hook | Tells Claude when a session starts and the map is out of date: a different commit is checked out, or the uncommitted work has changed since the map was read. Silent otherwise, and when the project has no map. | At the start of each session. |
-| [`setup`](./skills/setup/SKILL.md) | Skill | One-time setup: checks for Node and the companion skills, saves your map style, adds a one-line pointer to your `CLAUDE.md`, and offers a first map. Safe to run again. | Only when you type it. |
+| [`status`](./skills/status/SKILL.md) | Skill | Prints where the project stands from the map, in a few lines. It does not run the agent. | Only when you type `/build-compass:status`. |
+| [`setup`](./skills/setup/SKILL.md) | Skill | Setup and check-up: checks for Node, git and the companion skills, saves your map style, sets how often the map updates with a pointer in your `CLAUDE.md`, offers a first map, and reports what works. Safe to run again. | Only when you type `/build-compass:setup`. |
 
 The map and the grilling page are separate tools that share a plugin because they are two ends of the same job: deciding what to build, then seeing how the build is going.
 
@@ -84,6 +86,8 @@ Source: [anthropics/claude-plugins-community](https://github.com/anthropics/clau
 ## The map
 
 - **Top of the page:** how many items are left before the next milestone, one suggested next step with its reason, and which parts changed since the last update.
+- **Since you last looked:** every status that moved and every decision answered since you last pressed **Mark as seen**. It is remembered in your browser, so it covers all the updates in between.
+- **Tasks:** a done or in-progress task opens with before, now and one way to try it, then the checks Claude ran on it, then the commits and files. A task with no recorded check says so.
 - **Parts:** four to eight main parts, each with one status and a one-line reason. Stuck parts say what they are waiting on.
 - **Milestones:** yours if you have named them. If not, the agent reads the README and commit history and proposes a first version, marked as proposed until you edit it.
 - **Decisions:** anything that needs your call, with the options and the default.
@@ -102,6 +106,8 @@ Everything is clickable. Parts, tasks, milestone items and decisions open their 
 ## What it costs
 
 Measured on the example project in the screenshot, with the default Sonnet model: the first map took about 54,000 tokens and under a minute, and an update after a finished task about 37,000 tokens and 46 seconds. Larger projects cost more to read.
+
+Each update is one run of the agent, so how often it runs is the main cost. Setup offers three settings: after milestones (the default), after every finished task, or only when you ask. Claude skips an update that would change nothing and sends tasks that finish close together in one update. `/build-compass:status` and "where are we?" read the map without running the agent.
 
 It is cheap because the agent does not draw anything. The page ships with the plugin; the agent reads your project and writes a small data file. An earlier version drew a new page on every run and cost 100,000 to 200,000 tokens and 7 to 15 minutes each time.
 
@@ -125,7 +131,7 @@ That boundary is an instruction in the agent's prompt, not a sandbox. The agent 
 
 ## Limits
 
-- Statuses come from what the agent reads: commits, code, issues, plans. It does not run your tests, so "done" means the evidence says so.
+- Statuses come from what the agent reads: commits, code, issues, plans. It does not run your tests, so "done" means the evidence says so. The checks shown on a task are the ones Claude said it ran; the agent records them and does not repeat them.
 - The map is a snapshot. On a fast-moving branch it can be a task behind by the time it is written. A new session is told when the map is out of date; a running one is not.
 - `.grill/` and `.project-map/` are ignored by git, so the decisions file and the map stay on your machine. Copy `decisions.md` into your docs if the team needs it.
 - Every project gets the same page. The layout does not adapt to the project beyond an added table or list.
@@ -148,7 +154,7 @@ cp map/map.html map/check.mjs map/gather.mjs map/plan-extract.mjs map/status.mjs
 cp -r skills/mapping-progress skills/grill-page ~/.claude/skills/
 ```
 
-Then add the block in [`skills/setup/claude-md-block.md`](./skills/setup/claude-md-block.md) to your `CLAUDE.md`. For the note when a session starts with a stale map, add a `SessionStart` hook to your settings that runs `node ~/.claude/project-map/status.mjs --session-start`. Do not install both ways, or you will have everything twice.
+Then add one of the blocks in [`skills/setup/claude-md-block.md`](./skills/setup/claude-md-block.md) to your `CLAUDE.md`. For the note when a session starts with an out-of-date map, add a `SessionStart` hook to your settings that runs `node ~/.claude/project-map/status.mjs --session-start`. Do not install both ways, or you will have everything twice.
 
 ## Development
 

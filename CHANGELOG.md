@@ -1,5 +1,15 @@
 # build-compass
 
+## 0.3.0
+
+- **What a task changed for you.** A done or in-progress task can open with before, now and one way to try it, taken from the diff, the commit messages and the plan. The agent leaves out what it cannot ground there.
+- **Checked is separate from committed.** Claude passes the checks it ran on each task to the agent, and the task shows them as passed or failed with the commit they ran on. A task with no check says so: its code exists, which does not show that it works. `check.mjs` refuses a done task with a failed check, and `status.mjs` reports failing checks and how many done tasks have none.
+- **Since you last looked.** The map remembers in your browser what you last marked as seen, and lists every status that moved and every decision answered since, across however many updates happened in between. **Mark as seen** clears it.
+- **How often the map updates is your choice.** Setup offers three: after milestones, after every finished task, or only when asked, with what each costs. `mapping-progress` skips an update that would change nothing and sends tasks that finish close together in one update.
+- **`/build-compass:status`.** Prints where the project stands from the map, in a few lines, without running the agent.
+- **Setup reports what works.** It ends with one line per capability, ready or unavailable with the fix. It checks for git as well as Node, and tells you when a manual install sits beside the plugin.
+- **A slow git no longer reads as up to date.** The summary used to give git four seconds and treat a timeout as no difference. It now waits for git. The session-start hook keeps its limit and stays silent when it is hit.
+
 ## 0.2.2
 
 - **The map knows when it is out of date.** 0.2.0 compared only how many commits HEAD was ahead of the map. Checking out an older commit read as up to date, uncommitted edits never counted, and uncommitted work the map had already recorded counted as new. `gather.mjs` now records a fingerprint of the uncommitted work, the agent stores it with the commit, and `status.mjs` and the session-start hook call the map out of date when the checkout is at any other commit or the fingerprint differs.

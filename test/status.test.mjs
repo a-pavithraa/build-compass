@@ -49,6 +49,7 @@ test('prints the next milestone, next step, what changed, what is stuck and the 
   assert.match(stdout, /Waiting for you in the plan: Retry\? \(proposed: Once\)/);
   assert.doesNotMatch(stdout, /Answered already/);
   assert.match(stdout, /1 finding on the map/);
+  assert.match(stdout, /2 done tasks have no recorded check\./);
 });
 
 test('uncommitted work the map already recorded does not make it stale', (t) => {

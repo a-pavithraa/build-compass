@@ -355,6 +355,36 @@ ul.opts small{color:var(--ink-3)}
       return {text:lines.join('\n'), open:open.length, picked:picked.length};
     }
 
+    /* What moved since this viewer last marked the map as seen, across however many updates
+       happened in between. The first visit only records a baseline. */
+    var SEEN = 'project-map-seen:'+(D.project||'')+':'+location.pathname;
+    function snapshot(){
+      var s = {version:U.version||null, status:{}, answer:{}};
+      TASKS.concat(PARTS).forEach(function(o){ s.status[o.id] = o.status; });
+      DECS.forEach(function(d){ s.answer[d.id] = d.answer || null; });
+      return s;
+    }
+    function markSeen(){ try{ localStorage.setItem(SEEN, JSON.stringify(snapshot())); }catch(x){ /* remembering is a convenience only */ } }
+    var since = [], sinceFrom = null;
+    if(dataFile==='map-data.js'){
+      try{
+        var seen = JSON.parse(localStorage.getItem(SEEN) || 'null');
+        if(!seen) markSeen();
+        else if(seen.version !== (U.version||null)){
+          sinceFrom = seen.version;
+          TASKS.concat(PARTS).forEach(function(o){
+            var was = seen.status[o.id];
+            if(was !== o.status) since.push({id:o.id, text: was ? LABEL[was]+' → '+LABEL[o.status] : 'New, '+LABEL[o.status].toLowerCase()});
+          });
+          DECS.forEach(function(d){
+            if(d.answer && !seen.answer[d.id]) since.push({id:d.id, text:'Answered: '+d.answer});
+            else if(!(d.id in seen.answer)) since.push({id:d.id, text:'New decision'});
+          });
+          if(!since.length) markSeen();
+        }
+      }catch(x){ since = []; }
+    }
+
     var ICON = {
       chev:'<svg class="i" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5"/></svg>',
       x:'<svg class="i" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg>',
@@ -429,6 +459,11 @@ ul.opts small{color:var(--ink-3)}
         + (plan&&plan.approval?'<span class="badge '+(plan.approval==='approved'?'ok':'wait')+'">'+(plan.approval==='approved'?'Plan approved':'Plan awaiting your response')+'</span>':'')
         + (plan&&plan.file?'<a href="'+href(plan.file)+'">Open the plan</a>':'')+'</header>';
 
+      if(since.length){
+        h += '<section class="paste" id="since"><p class="msg"><b>Since you last looked</b>'+(sinceFrom?' (version '+e(sinceFrom)+' to '+e(U.version||'')+')':'')+'</p><ul class="ev">'
+          + since.map(function(c){ var it = byId[c.id]; return '<li>'+ref(c.id)+' '+e(it.o.name||it.o.question||'')+': '+e(c.text)+'</li>'; }).join('')
+          + '</ul><div class="row"><button class="btn quiet" id="seen">Mark as seen</button></div></section>';
+      }
       h += '<section class="lead"><div>';
       if(next){
         h += '<h1><button class="count num" id="count" aria-label="Show the '+left.length+' items left before milestone '+nextIdx+'">'+plural(left.length,'item','items')+' left</button> before '+e(lowerFirst(next.name))+'</h1>'
@@ -590,6 +625,19 @@ ul.opts small{color:var(--ink-3)}
           + '<div class="dstat">'+stat(o.status)+(o.part&&byId[o.part]?'<span>Part '+ref(o.part)+'</span>':'')+(o.milestone&&byId[o.milestone]?'<span>Milestone '+ref(o.milestone)+'</span>':'')+'</div>'
           + '<p class="t">'+e(o.reason||'')+'</p>';
         if(o.waitingOn) h += '<div class="wait">'+ICON.wait+'<span><b>Waiting on</b>'+e(o.waitingOn)+'</span></div>';
+        var out = o.outcome || {};
+        if(out.before || out.now || out.tryIt){
+          h += '<dl class="kv">'+(out.before?'<dt>Before</dt><dd>'+e(out.before)+'</dd>':'')+(out.now?'<dt>Now</dt><dd>'+e(out.now)+'</dd>':'')
+            + (out.tryIt?'<dt>Try it</dt><dd>'+e(out.tryIt)+'</dd>':'')+'</dl>';
+        }
+        var checks = arr(o.verified);
+        if(checks.length){
+          h += '<h3>Checked</h3><ul class="ev">'+checks.map(function(c){
+            return '<li>'+(c.result==='failed'?ICON.x+'<b>Failed:</b> ':ICON.ok+'<b>Passed:</b> ')+e(c.check)+(c.at?' <span class="mono">at '+e(c.at)+'</span>':'')+'</li>';
+          }).join('')+'</ul>';
+        } else if(o.status==='done' || o.status==='in-progress'){
+          h += '<h3>Checked</h3><p class="t">No check is recorded for this task. Its code exists, which does not show that it works.</p>';
+        }
         h += '<h3>What changed</h3>'+(arr(o.work).length?arr(o.work).map(record).join(''):'<p class="t">Nothing yet. No commit and no uncommitted change belongs to this task.</p>');
         h += '<h3>Where it sits</h3><dl class="kv"><dt>Needs</dt><dd>'+refs(o.needs)+'</dd><dt>Unlocks</dt><dd>'+refs(o.unlocks)+'</dd>'
           + (arr(o.decisions).length?'<dt>Decision</dt><dd>'+arr(o.decisions).map(ref).join('')+'<span>depends on this</span></dd>':'')
@@ -682,6 +730,7 @@ ul.opts small{color:var(--ink-3)}
       if(t.id==='copy'){ copyLine(); return; }
       if(t.name==='pick'){ state.picks[state.sel]=t.value; persist(); render(); refreshDetail(); var c=document.querySelector('input[name=pick]:checked'); if(c) c.focus(); return; }
       if(t.id==='unpick'){ delete state.picks[state.sel]; persist(); render(); refreshDetail(); var first=document.querySelector('input[name=pick]'); if(first) first.focus(); return; }
+      if(t.id==='seen'){ markSeen(); since = []; render(); return; }
       if(t.id==='clearpicks'){ state.picks={}; persist(); render(); if(state.sel) refreshDetail(); var dec=document.querySelector('#page .dec'); if(dec) dec.focus(); return; }
       if(t.id==='toanswers'){ select(null); var box=document.getElementById('answers'); if(box){ box.scrollIntoView({block:'center'}); document.getElementById('copy').focus(); } return; }
       var r = t.getAttribute('data-ref');

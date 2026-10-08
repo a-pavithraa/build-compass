@@ -80,6 +80,24 @@ test('structure: ids, statuses, stuck parts, plan decisions and approval', (t) =
   }
 });
 
+test('checks recorded on a task: a failed one keeps the task from being done', (t) => {
+  const p = project(t);
+  const passing = check(writeMap(p.dir, map(p, (d) => {
+    d.tasks[0].verified = [{ check: 'npm test: 3 passed', result: 'passed', at: p.hash }];
+    d.tasks[0].outcome = { before: 'There was no a.', now: 'There is an a.', tryIt: 'Open src/a.js.' };
+    return d;
+  })));
+  assert.equal(passing.code, 0, passing.stderr);
+  const failing = check(writeMap(p.dir, map(p, (d) => {
+    d.tasks[0].verified = [{ check: 'npm test: 1 failed', result: 'failed' }, { result: 'unknown' }];
+    return d;
+  })));
+  assert.equal(failing.code, 1);
+  for (const problem of ['task T1 is done but a check on it failed', 'a verified entry has no check', 'verified.result must be']) {
+    assert.ok(failing.stderr.includes(problem), `expected: ${problem}\n${failing.stderr}`);
+  }
+});
+
 test('outside git the structure is still checked and the git checks are skipped with a note', (t) => {
   const dir = tempDir(t);
   const file = writeMap(dir, map({ hash: 'abc1234', head: 'abc1234' }));

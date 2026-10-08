@@ -82,6 +82,12 @@ for (const task of list(data.tasks)) {
     if (!work.description) problems.push(`${who}: a work record has no description`);
   }
   if (!list(data.parts).some((part) => list(part.tasks).includes(task.id))) notes.push(`${who} is not listed under any part`);
+  for (const v of list(task.verified)) {
+    if (!v.check) problems.push(`${who}: a verified entry has no check`);
+    if (!['passed', 'failed'].includes(v.result)) problems.push(`${who}: verified.result must be "passed" or "failed"`);
+  }
+  if (task.status === 'done' && list(task.verified).some((v) => v.result === 'failed')) problems.push(`${who} is done but a check on it failed`);
+  if (task.outcome && ['before', 'now', 'tryIt'].some((k) => task.outcome[k] !== undefined && typeof task.outcome[k] !== 'string')) problems.push(`${who}: outcome.before, now and tryIt must be text`);
 }
 for (const milestone of list(data.milestones)) {
   if (!milestone.name) problems.push(`milestone ${milestone.id}: name is missing`);
