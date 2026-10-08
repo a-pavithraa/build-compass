@@ -104,13 +104,20 @@ Everything is clickable. Parts, tasks, milestone items and decisions open their 
 
 **Status comes from the code.** A detailed plan does not count as progress, and an unanswered plan does not reset work that exists. Whether a plan is approved is shown separately.
 
-## What it costs
+## Keeping it cheap
 
-Measured on the example project in the screenshot, with the default Sonnet model: the first map took about 54,000 tokens and under a minute, and an update after a finished task about 37,000 tokens and 46 seconds. Larger projects cost more to read.
+An early version drew a new page on every run, which cost 100,000 to 200,000 tokens and 7 to 15 minutes each time. What changed:
 
-Each update is one run of the agent, so how often it runs is the main cost. Setup offers three settings: after milestones (the default), after every finished task, or only when you ask. Claude skips an update that would change nothing and sends tasks that finish close together in one update. `/build-compass:status` and "where are we?" read the map without running the agent.
+- **The page ships with the plugin.** The agent writes a small data file and draws nothing.
+- **An update writes only what changed.** A script merges it into the data.
+- **The agent reads a short digest of the map,** not the data file, which grows with every task.
+- **Git facts come from a script.** Commits, file lists and line counts are not the model's work.
+- **An update re-reads only the parts the new work touches.**
+- **Your `CLAUDE.md` is not loaded,** so a long one adds nothing.
+- **You choose how often it runs.** Each update is one run of the agent, so this is the main cost. Setup offers three settings: after milestones (the default), after every finished task, or only when you ask. Claude skips an update that would change nothing and sends tasks that finish close together in one update.
+- **Asking does not run the agent.** `/build-compass:status` and "where are we?" read the map as it is.
 
-It is cheap because the agent does not draw anything. The page ships with the plugin; the agent reads your project and writes a small data file. An earlier version drew a new page on every run and cost 100,000 to 200,000 tokens and 7 to 15 minutes each time.
+On the example project in the screenshot, with the default Sonnet model, a first map or an update takes about a minute. Larger projects take longer and cost more to read.
 
 ## Grilling in a page
 
