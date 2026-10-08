@@ -24,6 +24,8 @@ const DEFAULT_SECONDS = 300;
 // An agent's shell call is cut off at ten minutes, so no new check starts after nine. The rest run next time.
 const BUDGET_SECONDS = 540;
 const say = (out) => console.log(JSON.stringify(out, null, 1));
+// Progress goes to stderr as each check starts and ends, so a long run does not look stuck and stdout stays one JSON result.
+const note = (line) => process.stderr.write(`${line}\n`);
 
 if (!existsSync(listPath(mapDir))) {
   say({ checks: false, note: 'No .project-map/checks.json, so no check was run. The owner lists the commands there.' });
@@ -72,6 +74,7 @@ function runOne(check) {
   const seconds = Math.max(1, +check.timeoutSeconds || DEFAULT_SECONDS);
   const began = Date.now();
   const took = () => Math.round((Date.now() - began) / 1000);
+  note(`${check.name}: running, up to ${seconds} s`);
   return new Promise((resolve) => {
     let out = '';
     let err = '';
@@ -108,11 +111,15 @@ for (const check of wanted) {
   const same = current.find((r) => r.name === check.name && r.run === check.run && r.in === folder(check.in));
   if (same) {
     results.push({ ...same, covers, reused: true });
+    note(`${check.name}: ${same.result}, reused from the last run`);
   } else if ((Date.now() - started) / 1000 > BUDGET_SECONDS) {
     left.push(check.name);
+    note(`${check.name}: left for the next run, out of time`);
     continue;
   } else {
-    results.push({ name: check.name, run: check.run, in: folder(check.in), covers, ...(await runOne(check)), reused: false });
+    const ran = await runOne(check);
+    results.push({ name: check.name, run: check.run, in: folder(check.in), covers, ...ran, reused: false });
+    note(`${check.name}: ${ran.result} in ${ran.seconds} s`);
   }
   save();
 }

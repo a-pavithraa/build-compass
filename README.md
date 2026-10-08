@@ -4,7 +4,7 @@
 
 **Know where your project stands without reading the transcript.**
 
-When Claude Code works on its own for an hour, the only record of what happened is a transcript nobody wants to read. build-compass makes Claude keep one page up to date as it works: what is done, what is in progress, what is stuck and on what, and what to do next. Open it with a double-click, any time.
+When Claude Code works on its own for an hour, the only record of what happened is a transcript nobody wants to read. build-compass keeps one page current as it works, and the page is built from the code and git history, not from Claude's own account. Every finished task shows what changed, which checks ran on it, and whether it is committed. An update takes about a minute. Open it with a double-click, any time.
 
 ```bash
 claude plugin marketplace add a-pavithraa/build-compass

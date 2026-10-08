@@ -48,8 +48,11 @@ test('each listed command runs once per state of the code, and its last line is 
   assert.deepEqual(first.out.results.map((r) => [r.name, r.result, r.summary, r.reused, r.covers]),
     [['Server tests', 'passed', '3 passed', false, ['server/']], ['Web tests', 'failed', '1 failed', false, ['web/']]]);
   assert.equal(first.out.at, p.head);
+  assert.match(first.stderr, /^Server tests: running, up to 300 s\nServer tests: passed in \d+ s\nWeb tests: running, up to 300 s\nWeb tests: failed in \d+ s\n$/, 'each check is announced as it starts and ends');
 
-  assert.deepEqual(runChecks(p).out.results.map((r) => r.reused), [true, true], 'nothing changed, so nothing runs again');
+  const again = runChecks(p);
+  assert.deepEqual(again.out.results.map((r) => r.reused), [true, true], 'nothing changed, so nothing runs again');
+  assert.equal(again.stderr, 'Server tests: passed, reused from the last run\nWeb tests: failed, reused from the last run\n');
   assert.deepEqual(runChecks(p, '--force').out.results.map((r) => r.reused), [false, false]);
 
   write(p.dir, 'server/a.js', 'a changed\n');

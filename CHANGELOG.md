@@ -1,5 +1,11 @@
 # build-compass
 
+## 0.3.5
+
+- **A run of checks shows its progress.** `run-checks.mjs` printed nothing until the last check had finished, so a few minutes of tests looked stuck. It now says when each check starts and ends, when a result is reused, and when a check is left for the next run. The lines go to stderr; the result on stdout is unchanged.
+- **The digest lists the tasks with no call stack.** 0.3.4 told the agent to fill in up to five older tasks on each update, but nothing told it which tasks had none, and an update could fill in none. The digest now names them as `callsMissing`, most recently worked on first, and the agent is pointed at that list. A call stack is still not guaranteed: a first map has no digest, and a task whose code is in another checkout cannot have one.
+- **The README opens with what the map is built from.** The page comes from the code and git history, each finished task shows what changed, which checks ran and whether it is committed, and an update takes about a minute.
+
 ## 0.3.4
 
 - **Call stacks reach older tasks.** A map that already had finished tasks never got their call stacks: the agent wrote one only for a task that changed in that update. Each update now also fills in up to five older tasks that have none, most recent first, until none are left.

@@ -35,6 +35,15 @@ if (itemAt >= 0) {
 // Leaves out what is empty, so a line carries only what the item has.
 const lean = (obj) => Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined && v !== null && v !== false && v !== 0 && !(Array.isArray(v) && !v.length)));
 
+// A task someone can check by hand that has no call stack yet, most recently worked on first. A result of
+// the owner's check commands covers a folder, so it does not stand in for a check of the task itself.
+const worked = list(data.commits).map((c) => c.task);
+const lastWorked = (t) => (worked.includes(t.id) ? worked.indexOf(t.id) : worked.length);
+const callsMissing = list(data.tasks)
+  .filter((t) => (t.status === 'done' || t.status === 'in-progress') && !list(t.calls).length && !list(t.verified).some((v) => v.by !== 'script'))
+  .sort((a, b) => lastWorked(a) - lastWorked(b))
+  .map((t) => t.id);
+
 const digest = {
   project: data.project,
   update: data.update,
@@ -51,6 +60,7 @@ const digest = {
   decisions: list(data.decisions).map((d) => lean({ id: d.id, question: d.question, options: d.options, default: d.default, answer: d.answer, readOnly: d.readOnly, waiting: d.waiting })),
   findings: list(data.findings),
   checks: list(data.checks).map((c) => `${c.name}: ${c.result} at ${c.at}`),
+  callsMissing,
   commits: list(data.commits).map((c) => [c.hash || 'uncommitted', c.task].filter(Boolean).join(' ')),
   alsoHolds: lean({
     decided: list(data.decided).length, panels: list(data.panels).map((p) => p.title),

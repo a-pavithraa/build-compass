@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
@@ -42,14 +42,10 @@ export function commit(dir, message) {
 
 // Runs a map script and returns { code, stdout, stderr } without throwing on a non-zero exit.
 export function run(script, args, options = {}) {
-  try {
-    const stdout = execFileSync(process.execPath, [join(MAP, script), ...args], {
-      encoding: 'utf8', env: { ...GIT_ENV, ...options.env }, cwd: options.cwd, stdio: ['ignore', 'pipe', 'pipe'],
-    });
-    return { code: 0, stdout, stderr: '' };
-  } catch (err) {
-    return { code: err.status, stdout: err.stdout || '', stderr: err.stderr || '' };
-  }
+  const { status, stdout, stderr } = spawnSync(process.execPath, [join(MAP, script), ...args], {
+    encoding: 'utf8', env: { ...GIT_ENV, ...options.env }, cwd: options.cwd, stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  return { code: status, stdout: stdout || '', stderr: stderr || '' };
 }
 
 export function writeMap(dir, data) {
