@@ -1,5 +1,15 @@
 # build-compass
 
+## 0.5.1
+
+Found by reading a real project's map.
+
+- **A passing check is no longer hidden behind an older failure.** Check results used to reach the map only when the code was exactly as the map had read it. If a file changed between the read and the run, the new results were dropped without a word and the old ones stayed, so a map could say "Failed" beside a run that had passed. The newest results now always show for the project, each with what it ran on, and a note when that was not the code the map read. They go on tasks when they ran on the commit the map was read at.
+- **A failed check says what broke.** A run that fails without counting a failure, such as a compile error, used to show its last line, often a link to a help page. It now shows the line that names the failure, and a failed test run lists up to three failing tests by name.
+- **The top of the page is shorter.** What the last update changed sits behind one link under the open items, where it used to run on as a paragraph. The agent is told to keep it to two sentences and to leave check results out of it.
+- **Loose files fold away.** "Uncommitted, not tied to a task" shows four files and a link to the rest.
+- **The README has Install and Update headings,** with the two commands that bring an installed copy up to date.
+
 ## 0.5.0
 
 - **The map keeps up with git without the agent.** `map/refresh.mjs` brings the facts that need no judgment up to date in a few seconds, with no tokens. A task's uncommitted work becomes committed work once every file of it is committed. New commits join the list, under a task when its work holds them or the message starts with its label. A commit that has reached a remote is marked as pushed. It never changes a status, a reason, a rule or the next step.

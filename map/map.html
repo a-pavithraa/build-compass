@@ -85,6 +85,10 @@ svg.i .fill{fill:currentColor;stroke:none}
 .count{font:inherit;color:var(--accent-ink);border-bottom:2px solid var(--accent);padding-bottom:1px;border-radius:0;transition:color .15s,background .15s}
 .count:hover{color:var(--ink);background:var(--select)}
 .lead .sub{color:var(--ink-2);margin-top:12px;max-width:62ch}
+.lastup{margin-top:10px;max-width:62ch;color:var(--ink-2);font-size:14px}
+.lastup summary{cursor:pointer;color:var(--ink-3);font-size:13px}
+.lastup p{margin-top:6px}
+.ev .failing{display:block;margin-top:4px;font-family:var(--mono);font-size:12.5px;color:var(--ink-2);overflow-wrap:anywhere}
 .next h2{font-size:22px;line-height:1.2}
 .next .kicker{font:600 13px/1.4 var(--body);color:var(--ink-3);margin-top:0}
 .next p{color:var(--ink-2);margin-top:8px;max-width:60ch}
@@ -388,7 +392,7 @@ ul.opts small{color:var(--ink-3)}
     /* Every answer the owner has given on this page, gathered in the drawer. Not an id from the data. */
     var ANSWERS = '@answers';
     byId[ANSWERS] = {type:'answers', o:{}};
-    var state = {sel:null, filter:null, picks:{}, earlier:false, openMs:{}};
+    var state = {sel:null, filter:null, picks:{}, earlier:false, openMs:{}, allFiles:false};
     var changed = arr(U.changed);
 
     /* Picks outlive the page's own reloads. A pick is kept only while its decision is still open
@@ -542,6 +546,7 @@ ul.opts small{color:var(--ink-3)}
         + (arr(r.usedBy).length?'<p class="rat">Also used by: '+arr(r.usedBy).map(function(c){return '<span class="mono" title="'+e(c.at)+'">'+e(c.fn)+'</span>';}).join(', ')+'</p>':'')
         + '</div></div>';
     }
+    var FILES_SHOWN = 4;
     function fileRows(files){
       return arr(files).map(function(f){
         return '<div class="frow"><span class="mono">'+e(f.path)+'</span><span class="k">'+e(f.kind||'')+'</span>'
@@ -580,7 +585,8 @@ ul.opts small{color:var(--ink-3)}
       if(next){
         h += '<h1><button class="count num" id="count" aria-label="Show the '+left.length+' items left before milestone '+nextIdx+'">'+plural(left.length,'item','items')+' left</button> before '+e(lowerFirst(next.name))+'</h1>'
           + '<p class="sub">That is milestone '+nextIdx+' of '+MILES.length+(next.proposed?', proposed and waiting for your edit':'')+'. Still open: '
-          + left.map(function(i){return ref(i)+' '+e(task(i).name);}).join(', ')+'. '+e(U.changedNote||'')+'</p>';
+          + left.map(function(i){return ref(i)+' '+e(task(i).name);}).join(', ')+'.</p>'
+          + (U.changedNote?'<details class="lastup"><summary>What the last update changed</summary><p>'+e(U.changedNote)+'</p></details>':'');
       } else if(MILES.length){
         h += '<h1>Every milestone is reached</h1><p class="sub">'+e(U.changedNote||'')+'</p>';
       } else {
@@ -624,7 +630,10 @@ ul.opts small{color:var(--ink-3)}
         leftCol += '<section><div class="sec-head"><h2>'+e(p.title)+'</h2>'+(p.hint?'<span class="hint">'+e(p.hint)+'</span>':'')+'</div>'+body+'</section>';
       });
       if(UN && arr(UN.files).length){
-        rightCol += '<section><div class="sec-head"><h2>Uncommitted, not tied to a task</h2></div>'+fileRows(UN.files)+(UN.note?'<p class="meta" style="padding:0 10px">'+e(UN.note)+'</p>':'')+'</section>';
+        rightCol += '<section><div class="sec-head"><h2>Uncommitted, not tied to a task</h2><span class="hint">'+plural(UN.files.length,'file','files')+'</span></div>'
+          + fileRows(state.allFiles?UN.files:UN.files.slice(0,FILES_SHOWN))
+          + (UN.files.length>FILES_SHOWN?'<p class="meta" style="padding:0 10px"><button class="count" id="allfiles" aria-expanded="'+state.allFiles+'">'+(state.allFiles?'Show fewer':'Show all '+UN.files.length+' files')+'</button></p>':'')
+          + (UN.note?'<p class="meta" style="padding:0 10px">'+e(UN.note)+'</p>':'')+'</section>';
       }
       if(SC && arr(SC.items).length){
         rightCol += '<section><div class="sec-head"><h2>'+e(SC.title||'Not changing')+'</h2></div><div class="scope"><ul>'
@@ -685,7 +694,9 @@ ul.opts small{color:var(--ink-3)}
       if(CH.length){
         h += '<section><div class="sec-head"><h2>Checks run</h2><span class="hint">The commands listed in checks.json</span></div><ul class="ev">'
           + CH.map(function(c){ var bad = c.result==='failed';
-              return '<li'+(bad?' class="failed"':'')+'>'+(bad?ICON.x:ICON.ok)+'<span><b>'+(bad?'Failed: ':'Passed: ')+e(c.name)+'.</b> '+e(c.summary||'')+(c.at?' <span class="mono">at '+e(c.at)+'</span>':'')+'</span></li>'; }).join('')
+              return '<li'+(bad?' class="failed"':'')+'>'+(bad?ICON.x:ICON.ok)+'<span><b>'+(bad?'Failed: ':'Passed: ')+e(c.name)+'.</b> '+e(c.summary||'')+(c.at?' <span class="mono">at '+e(c.at)+'</span>':'')
+                + (c.otherWork?' <span class="meta">The code was not as the map read it when this ran.</span>':'')
+                + arr(c.failing).map(function(f){return '<span class="failing">'+e(f)+'</span>';}).join('')+'</span></li>'; }).join('')
           + '</ul></section>';
       }
       var F = arr(D.findings);
@@ -930,6 +941,7 @@ ul.opts small{color:var(--ink-3)}
       if(t.id==='seen'){ markSeen(); since = []; render(); return; }
       if(t.hasAttribute('data-ms')){ var ms=t.getAttribute('data-ms'); state.openMs[ms] = !state.openMs[ms]; render();
         var toggle=document.querySelector('[data-ms="'+ms.replace(/"/g,'\\"')+'"]'); if(toggle) toggle.focus(); return; }
+      if(t.id==='allfiles'){ state.allFiles = !state.allFiles; render(); document.getElementById('allfiles').focus(); return; }
       if(t.id==='earlier'){ state.earlier = !state.earlier; render(); document.getElementById('earlier').focus(); return; }
       if(t.id==='clearpicks'){ state.picks={}; persist(); render(); refreshDetail(); drawer.focus({preventScroll:true}); return; }
       if(t.id==='toanswers'){ select(ANSWERS); var copy=document.getElementById('copy'); if(copy) copy.focus(); return; }

@@ -112,3 +112,38 @@ test('a passed check goes on the tasks it covers; a failed one is shown for the 
   assert.equal(run('merge.mjs', [p.mapDir]).code, 0);
   assert.equal(read(file).tasks[0].verified[0].at, p.head, 'results from an older commit stay as they were, with the commit they ran at');
 });
+
+test('a result that ran on later edits still shows, so a pass is never hidden behind an older failure', (t) => {
+  const p = project(t, [{ name: 'Server tests', run: FAILS, in: 'server' }]);
+  write(p.dir, 'server/wip.js', 'first\n');
+  const { fingerprint } = JSON.parse(run('gather.mjs', [], { cwd: p.dir }).stdout);
+  const map = mapOf(p);
+  map.update.fingerprint = fingerprint;
+  const file = writeMap(p.dir, map);
+  assert.equal(runChecks(p, '--attach').out.attached, true);
+  assert.deepEqual(read(file).checks.map((c) => [c.result, c.otherWork]), [['failed', undefined]]);
+
+  write(p.dir, 'server/wip.js', 'fixed after the map was read\n');
+  write(p.dir, '.project-map/checks.json', JSON.stringify({ checks: [{ name: 'Server tests', run: PASSES, in: 'server' }] }));
+  assert.equal(runChecks(p, '--attach').out.attached, true);
+  const data = read(file);
+  assert.deepEqual(data.checks.map((c) => [c.result, c.otherWork]), [['passed', true]]);
+  assert.equal(data.tasks[0].verified[0].check, 'Server tests: 3 passed', 'on the same commit the pass reaches the task');
+  assert.doesNotMatch(run('status.mjs', [file]).stdout, /Failing check/);
+});
+
+test('a failed run says what broke and names the failing tests, not a pointer to help', (t) => {
+  const prints = (lines, code = 0) => `node -e "${lines.map((line) => `console.log('${line}')`).join(';')};process.exit(${code})"`;
+  const p = project(t, [
+    { name: 'Compile', run: prints(['[INFO] Tests run: 587, Failures: 0, Errors: 0, Skipped: 0', '[INFO] BUILD FAILURE', '[ERROR] Failed to execute goal compiler:compile on project backend: Compilation failure', '[ERROR] -> [Help 1]', '[ERROR] [Help 1] http://cwiki.apache.org/MojoFailureException'], 1) },
+    { name: 'Tests', run: prints(['[ERROR]   BookingTest.refusesBookedSlot:42 expected 409 but was 200', '[ERROR] Tests run: 12, Failures: 1, Errors: 0, Skipped: 0', '[ERROR] -> [Help 1]'], 1) },
+    { name: 'Vitest', run: prints([' FAIL  src/a.test.ts > keeps the slot', ' Tests  1 failed | 4 passed (5)'], 1) },
+  ]);
+  const { results } = runChecks(p).out;
+  assert.deepEqual(results.map((r) => r.summary), [
+    '[ERROR] Failed to execute goal compiler:compile on project backend: Compilation failure',
+    '[ERROR] Tests run: 12, Failures: 1, Errors: 0, Skipped: 0',
+    'Tests  1 failed | 4 passed (5)',
+  ]);
+  assert.deepEqual(results.map((r) => r.failing), [undefined, ['BookingTest.refusesBookedSlot:42 expected 409 but was 200'], ['src/a.test.ts > keeps the slot']]);
+});

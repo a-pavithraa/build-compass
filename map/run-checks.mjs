@@ -23,6 +23,7 @@ const mapDir = join(root, '.project-map');
 const DEFAULT_SECONDS = 300;
 // An agent's shell call is cut off at ten minutes, so no new check starts after nine. The rest run next time.
 const BUDGET_SECONDS = 540;
+const KEPT_CHARS = 12000;
 const say = (out) => console.log(JSON.stringify(out, null, 1));
 // Progress goes to stderr as each check starts and ends, so a long run does not look stuck and stdout stays one JSON result.
 const note = (line) => process.stderr.write(`${line}\n`);
@@ -69,11 +70,29 @@ const COUNTS = {
   passed: /\d+\s+pass(ed)?\b|\bpass(ed)?[:\s]+\d+/i,
   failed: /\d+\s+(fail(ed|ures?)?|errors?)\b|\b(fail(ed|ures?)?|errors?)[:\s]+\d+/i,
 };
+// A failed run that counts no failure broke somewhere else, such as a compile step. Its last line is
+// often a pointer to help, so the line that names what failed is preferred.
+const SOME_FAILED = /\b[1-9]\d*\s+(fail|error)|\b(fail(ed|ures?)?|errors?)[:\s]+[1-9]/i;
+const GOAL = /failed to execute goal/i;
+const WENT_WRONG = /\b(error|failed|failure|exception)\b/i;
+const POINTER = /\[Help \d+\]|re-run|for more information|full stack trace|https?:\/\//i;
+const linesOf = (text) => String(text || '').replace(/\x1b\[[0-9;]*[A-Za-z]/g, '').split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
 function summaryOf(text, result) {
-  const lines = String(text || '').replace(/\x1b\[[0-9;]*[A-Za-z]/g, '').split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const lines = linesOf(text);
   const counting = (pattern) => lines.findLast((line) => pattern.test(line));
-  const line = counting(COUNTS[result]) || counting(COUNTS.passed) || counting(COUNTS.failed) || lines.at(-1) || '';
+  const broke = result === 'failed'
+    ? lines.findLast((line) => COUNTS.failed.test(line) && SOME_FAILED.test(line)) || counting(GOAL) || lines.findLast((line) => WENT_WRONG.test(line) && !POINTER.test(line) && !COUNTS.failed.test(line))
+    : null;
+  const line = broke || counting(COUNTS[result]) || counting(COUNTS.passed) || counting(COUNTS.failed) || lines.at(-1) || '';
   return line.replace(/^[^\w[(]+/, '').slice(0, 160);
+}
+
+// The tests a failed run names, as Maven, Vitest, Jest and Node's runner print them.
+const NAMED = [/^\[ERROR\]\s+([\w.$]+\.[\w$]+:\d+.*)$/, /^(?:FAIL|\u2716|\u00d7|not ok(?: \d+)?(?: -)?)\s+(.+)$/];
+const FAILING_KEEP = 3;
+function failingOf(text) {
+  const names = linesOf(text).flatMap((line) => NAMED.map((pattern) => (pattern.exec(line) || [])[1]).filter(Boolean)).map((name) => name.slice(0, 120));
+  return [...new Set(names)].slice(0, FAILING_KEEP);
 }
 
 // Run without waiting on the shell alone: when time runs out, everything the command started has to go
@@ -91,8 +110,8 @@ function runOne(check) {
       cwd: join(root, folder(check.in)), shell: true, stdio: ['ignore', 'pipe', 'pipe'],
       env: { ...process.env, CI: '1' }, detached: process.platform !== 'win32',
     });
-    child.stdout.on('data', (chunk) => { out = (out + chunk).slice(-4000); });
-    child.stderr.on('data', (chunk) => { err = (err + chunk).slice(-4000); });
+    child.stdout.on('data', (chunk) => { out = (out + chunk).slice(-KEPT_CHARS); });
+    child.stderr.on('data', (chunk) => { err = (err + chunk).slice(-KEPT_CHARS); });
     const timer = setTimeout(() => {
       timedOut = true;
       if (process.platform === 'win32') spawnSync('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore' });
@@ -107,7 +126,8 @@ function runOne(check) {
       if (timedOut) resolve({ result: 'failed', summary: `timed out after ${seconds} s`, seconds: took() });
       else {
         const result = code === 0 ? 'passed' : 'failed';
-        resolve({ result, summary: summaryOf(out, result) || summaryOf(err, result) || `exit code ${code}`, seconds: took() });
+        const failing = result === 'failed' ? failingOf(`${out}\n${err}`) : [];
+        resolve({ result, summary: summaryOf(out, result) || summaryOf(err, result) || `exit code ${code}`, ...(failing.length ? { failing } : {}), seconds: took() });
       }
     });
   });
@@ -135,7 +155,7 @@ for (const check of wanted) {
   save();
 }
 
-const out = { checks: true, at: dirty ? `${commit} plus uncommitted work` : commit, results: results.map(({ name, result, summary, seconds, reused, covers }) => ({ name, result, summary, seconds, reused, covers })) };
+const out = { checks: true, at: dirty ? `${commit} plus uncommitted work` : commit, results: results.map(({ name, result, summary, failing, seconds, reused, covers }) => ({ name, result, summary, ...(failing ? { failing } : {}), seconds, reused, covers })) };
 if (left.length) out.left = { names: left, note: 'Out of time for this run. Run it again to finish these; the finished ones are reused.' };
 
 if (argv.includes('--attach')) {
@@ -153,7 +173,7 @@ if (argv.includes('--attach')) {
       process.exit(1);
     }
   } else {
-    out.note = 'Nothing attached: the map was read at a different commit or different uncommitted work than the checks ran on.';
+    out.note = 'Nothing attached: no check has a saved result.';
   }
 }
 say(out);

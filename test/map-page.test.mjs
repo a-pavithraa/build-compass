@@ -436,3 +436,31 @@ test('a map that the refresh found behind says so, and reloads when that changes
   assert.match(await page.locator('#behind').textContent(), /2 commits and 1 changed file since it was read/);
   assert.match(await page.locator('header.top .push').textContent(), /facts refreshed 8 Oct 2026, 09:40/);
 });
+
+test('a long list of loose files and the last update\'s note stay folded, and a failed check names its tests', async (t) => {
+  const { browser, skip } = await launch();
+  if (skip) return t.skip(skip);
+  t.after(() => browser.close());
+
+  const dir = tempDir(t);
+  copyFileSync(join(MAP, 'map.html'), join(dir, 'map.html'));
+  const data = mapData(1);
+  data.tasks = [{ id: 'T1', name: 'Book a slot', status: 'in-progress', part: 'P1' }];
+  data.parts[0].tasks = ['T1'];
+  data.milestones = [{ id: 'M1', name: 'A customer can book', tasks: ['T1'] }];
+  data.update.changedNote = 'The check moved into the booking code.';
+  data.unassigned = { files: [1, 2, 3, 4, 5, 6].map((n) => ({ path: `docs/note-${n}.md`, kind: 'new', added: n })) };
+  data.checks = [{ name: 'Server tests', result: 'failed', summary: 'Tests run: 12, Failures: 1', at: 'abc1234', otherWork: true, failing: ['BookingTest.refusesBookedSlot:42'] }];
+  writeData(dir, data);
+  const page = await browser.newPage();
+  await page.goto(pathToFileURL(join(dir, 'map.html')).href);
+
+  assert.equal(await page.locator('.lastup').getAttribute('open'), null);
+  assert.doesNotMatch(await page.locator('.lead .sub').textContent(), /moved into the booking code/);
+  assert.equal(await page.locator('.frow').count(), 4);
+  await page.click('#allfiles');
+  assert.equal(await page.locator('.frow').count(), 6);
+  const failed = await page.locator('li.failed').textContent();
+  assert.match(failed, /BookingTest\.refusesBookedSlot:42/);
+  assert.match(failed, /not as the map read it/);
+});

@@ -6,6 +6,10 @@
 
 When Claude Code works on its own for an hour, the only record of what happened is a transcript nobody wants to read. build-compass keeps one page current as it works, and the page is built from the code and git history, not from Claude's own account. Every finished task shows what changed, which checks ran on it, and whether it is committed. An update takes about a minute. Open it with a double-click, any time.
 
+The picture above is a real map, drawn by this plugin for a made-up booking app.
+
+## Install
+
 ```bash
 claude plugin marketplace add a-pavithraa/build-compass
 claude plugin install build-compass@a-pavithraa
@@ -13,7 +17,14 @@ claude plugin install build-compass@a-pavithraa
 
 Then, once, inside Claude Code: `/build-compass:setup`
 
-The picture above is a real map, drawn by this plugin for a made-up booking app.
+## Update
+
+```bash
+claude plugin marketplace update a-pavithraa
+claude plugin update build-compass@a-pavithraa
+```
+
+The first command fetches the newest version from GitHub, and the second installs it. Start a new Claude Code session afterwards: a running one keeps the version it started with. The [changelog](./CHANGELOG.md) says what each version changed.
 
 ## What it does for you
 
@@ -125,7 +136,7 @@ Everything is clickable. Parts, tasks, milestone items and decisions open their 
 - A commit that has reached a remote is marked as pushed.
 - Whatever is left, commits and changed files no update has read, is counted. The page then says at the top that it is behind the code and by how much, which it could not know before, since a page opened from disk cannot ask git.
 
-It never changes a status, a reason, a rule or the next step. Those wait for the agent. `node <plugin>/map/refresh.mjs --checks` also runs your check commands and attaches the results, when the map has nothing left unread.
+It never changes a status, a reason, a rule or the next step. Those wait for the agent. `node <plugin>/map/refresh.mjs --checks` also runs your check commands and shows what they said.
 
 **Status comes from the code.** A detailed plan does not count as progress, and an unanswered plan does not reset work that exists. Whether a plan is approved is shown separately.
 
