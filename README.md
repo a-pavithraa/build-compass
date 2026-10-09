@@ -142,6 +142,7 @@ An early version drew a new page on every run, which cost 100,000 to 200,000 tok
 - **Rules are read from work the agent already reads.** It writes them only for the tasks in an update, at most five each. A script, not the model, says whether a rule is new or changed, what it was before and which test names it. Setup can turn rules off for a project.
 - **You choose how often it runs.** Each update is one run of the agent, so this is the main cost. Setup offers three settings: after milestones (the default), after every finished task, or only when you ask. Claude skips an update that would change nothing and sends tasks that finish close together in one update.
 - **Asking does not run the agent.** `/build-compass:status` and "where are we?" read the map as it is.
+- **Keeping up with git does not run it either.** After a commit or a push, a script moves the map's commits and push state along. The agent is sent only when something needs judging.
 
 On the example project in the screenshot, with the default Sonnet model, a first map or an update takes about a minute. Larger projects take longer and cost more to read.
 
@@ -173,7 +174,8 @@ That boundary is an instruction in the agent's prompt, not a sandbox. The agent 
 - A rule is the agent's reading of a diff. It can call plumbing a rule or miss a real one, and one it is unsure of is marked "Inferred". The line it points at is checked; the wording is not. Tell Claude when one is wrong, and the agent keeps your version. Tasks finished before 0.4.0 have no rules: they start with the next task that lands.
 - "Test" beside a rule means a test file in that task's commits names the function. It does not mean a test asserts the rule.
 - A passing check command is recorded on every task with a file under the folder it covers. That shows the suite passed with the task's code in place, not that someone verified that task.
-- The map is a snapshot. On a fast-moving branch it can be a task behind by the time it is written. A new session is told when the map is out of date; a running one is not.
+- The map is a snapshot. On a fast-moving branch it can be a task behind by the time it is written. A new session is told when the map is out of date, and the page says so once the refresh has run. The refresh runs after git commands Claude runs and at a session's start, so a commit you make in your own terminal shows on the map at the next of those.
+- The refresh moves facts, not judgments. A task whose work it marked as committed keeps its old status and reason until the agent runs. It also plays safe with leftovers: if any uncommitted file remains after a commit, the map stays marked as behind, because the script cannot tell whether that file was edited since it was read.
 - `.grill/` and `.project-map/` are ignored by git, so the decisions file and the map stay on your machine. Copy `decisions.md` into your docs if the team needs it.
 - Every project gets the same page. The layout does not adapt to the project beyond an added table or list.
 - The agent runs on Sonnet by default. It judges status from what it reads, and on a large or tangled project it can group things in a way you would not. Edit the data file, or tell Claude, and it keeps your version.
