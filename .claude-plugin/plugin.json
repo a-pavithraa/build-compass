@@ -1,6 +1,6 @@
 {
   "name": "build-compass",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "A subagent that draws a clickable map of where your project stands, plus skills to keep it current and to answer grilling questions in a page.",
   "author": {
     "name": "Pavithra Aravamudhan",

@@ -415,3 +415,24 @@ test('a finished milestone is one line until it is opened, and an unchecked task
   assert.match(await shut.textContent(), /Milestone 1, proposed/, 'with a confirmed milestone beside it, a proposed one says so itself');
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= 390), 'no sideways scroll on a phone');
 });
+
+test('a map that the refresh found behind says so, and reloads when that changes', async (t) => {
+  const { browser, skip } = await launch();
+  if (skip) return t.skip(skip);
+  t.after(() => browser.close());
+
+  const dir = tempDir(t);
+  copyFileSync(join(MAP, 'map.html'), join(dir, 'map.html'));
+  const data = mapData(1);
+  writeData(dir, data);
+  const page = await browser.newPage();
+  await page.goto(pathToFileURL(join(dir, 'map.html')).href);
+  assert.equal(await page.locator('#behind').count(), 0);
+
+  data.update.unread = { commits: 2, files: 1, head: 'def5678' };
+  data.update.refreshed = { at: '2026-10-08 09:40 +05:30', atShort: '8 Oct 2026, 09:40' };
+  writeData(dir, data);
+  await page.waitForEvent('load', { timeout: 30000 });
+  assert.match(await page.locator('#behind').textContent(), /2 commits and 1 changed file since it was read/);
+  assert.match(await page.locator('header.top .push').textContent(), /facts refreshed 8 Oct 2026, 09:40/);
+});

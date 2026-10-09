@@ -11,7 +11,8 @@ The **map** is `.project-map/map.html`: one page showing the project's parts, th
 
 **How often** is the user's choice, set by the `# Project map` line in their `CLAUDE.md`: after milestones, after every finished task, or only when they ask. With no such line, update after milestones. Each update costs a run of the agent, so:
 
-- **Skip an update that would change nothing.** Run `status.mjs` first (see "Answering"). If it says the map is up to date and no task has finished since, do not dispatch.
+- **Refresh before you dispatch.** Run `node <plugin>/map/refresh.mjs` from the project root (`<plugin>` as in "Answering"). It takes a few seconds and no agent: it turns a task's uncommitted work into committed work once its files are committed, lists new commits, marks pushed commits as pushed, and says what is left that no update has read. Add `--checks` at a milestone to run the owner's check commands too. The plugin's hook runs the plain form after each git command, so the map is often refreshed already.
+- **Skip an update that would change nothing.** Run `status.mjs` after the refresh (see "Answering"). If it says the map is up to date and no task has finished since, do not dispatch. The refresh never changes a status, a reason, a rule or the next step: when a task has finished or started, those still need the agent.
 - **Batch close work.** When tasks finish within minutes of each other, give them to the agent in one update.
 
 Within that frequency, dispatch the agent in the background, then carry on with the work:

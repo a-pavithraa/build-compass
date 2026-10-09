@@ -352,7 +352,7 @@ ul.opts small{color:var(--ink-3)}
     s.onerror = function(){ s.remove(); if(failed) failed(); };
     document.head.appendChild(s);
   }
-  function stamp(d){ var u=(d&&d.update)||{}; return [u.version,u.readAt,u.commit].join('|'); }
+  function stamp(d){ var u=(d&&d.update)||{}; return [u.version,u.readAt,u.commit,(u.refreshed||{}).at,JSON.stringify(u.unread||'')].join('|'); }
 
   load(dataFile, function(D){
     if(!D || typeof D!=='object' || !Array.isArray(D.parts)){
@@ -555,10 +555,20 @@ ul.opts small{color:var(--ink-3)}
       h += '<header class="top"><span class="name">'+e(D.project||'Project')+' <span>project map</span></span>'
         + '<span class="sum">'+e(D.summary||'')+'</span>'
         + '<span class="push">'+(U.first?'First version':'Version '+e(U.version||''))+(U.readAtShort||U.readAt?' &middot; read '+e(U.readAtShort||U.readAt):'')
-        + (U.commit?' &middot; at <span class="mono">'+e(U.commit)+'</span>':'')+(U.uncommittedWork?' plus uncommitted work':'')+'</span>'
+        + (U.commit?' &middot; at <span class="mono">'+e(U.commit)+'</span>':'')+(U.uncommittedWork?' plus uncommitted work':'')
+        + (U.refreshed?' &middot; facts refreshed '+e(U.refreshed.atShort||U.refreshed.at||''):'')+'</span>'
         + (plan&&plan.approval?'<span class="badge '+(plan.approval==='approved'?'ok':'wait')+'">'+(plan.approval==='approved'?'Plan approved':'Plan awaiting your response')+'</span>':'')
         + (plan&&plan.file?'<a href="'+href(plan.file)+'">Open the plan</a>':'')+'</header>';
 
+      /* refresh.mjs counts what no update has read. The page cannot ask git, so this is how it knows it is behind. */
+      if(U.unread){
+        var gap = [];
+        if(U.unread.commits) gap.push(plural(U.unread.commits,'commit','commits'));
+        if(U.unread.files) gap.push(plural(U.unread.files,'changed file','changed files'));
+        h += '<section class="paste" id="behind"><p class="msg"><b>This map is behind the code.</b> '
+          + (U.unread.note ? e(U.unread.note) : gap.length ? gap.join(' and ')+' since it was read: no update has looked at '+(U.unread.commits+U.unread.files===1?'it':'them')+' yet.' : 'The uncommitted work has changed since it was read.')
+          + ' The statuses below may be out of date. Ask Claude to update the map.</p></section>';
+      }
       var fresh = freshRules();
       if(since.length || fresh.length){
         h += '<section class="paste" id="since"><p class="msg"><b>Since you last looked</b>'+(sinceFrom?' (version '+e(sinceFrom)+' to '+e(U.version||'')+')':'')+'</p><ul class="ev">'

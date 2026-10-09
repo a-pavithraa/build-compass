@@ -116,6 +116,8 @@ With nothing from these, leave `verified` out; the page then says no check is re
 
 Uncommitted changes you cannot tie to one task go in `unassigned`, once, not guessed onto a task. Never invent a file list or a hash: `check.mjs` refuses any hash or path that git does not know.
 
+Between your updates `refresh.mjs` may have changed a record with no agent: it turns uncommitted work into committed work when every file of it is committed, and marks commits as pushed. Such a record's `link` ends "with no agent". Its commits and files are from git, so keep them; its `description` and the task's `status` and `reason` are still from before the commit, so put that task in the patch and bring them up to date. `update.unread` and `update.refreshed` are the script's: never write them. `merge.mjs` removes both when your update lands.
+
 On an update, put a task in the patch when this run's `gather.mjs` output has something for it, a commit, an uncommitted file or work in a worktree, or when the digest shows an uncommitted record on it. Rebuild that task's records from git. Leave every other task out of the patch: its records stand. To change one part of a record you are keeping, such as `pushed`, get the task with `digest.mjs --item` and give its `work` list complete.
 
 ## Decisions

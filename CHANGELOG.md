@@ -1,5 +1,15 @@
 # build-compass
 
+## 0.5.0
+
+- **The map keeps up with git without the agent.** `map/refresh.mjs` brings the facts that need no judgment up to date in a few seconds, with no tokens. A task's uncommitted work becomes committed work once every file of it is committed. New commits join the list, under a task when its work holds them or the message starts with its label. A commit that has reached a remote is marked as pushed. It never changes a status, a reason, a rule or the next step.
+- **It runs by itself.** A hook runs it after each git command Claude runs in the shell, and when a session starts, before the note about an out-of-date map. As a hook it prints nothing and never fails the command it follows. It does nothing while an update by the agent is in progress.
+- **The page says when it is behind.** The refresh counts the commits and changed files that no update has read and writes the count into the data. The page shows it at the top: "This map is behind the code", with how much. A page opened from disk cannot ask git, so until now only `status.mjs` could say this. When nothing is left unread, the map counts as read at HEAD and the notice goes.
+- **A commit is read only when all of it is.** A commit that holds one task's files and other files too stays unread, so the agent still looks at the rest.
+- **Checks on request.** `refresh.mjs --checks` runs the owner's check commands first and attaches what they said, when the map has nothing left unread.
+- **Code that moved does not block it.** A map between updates can already fail `check.mjs`, for example when a call is no longer near its line. The refresh is refused only for a problem it brought in.
+- **The agent and the skill know about it.** The skill refreshes before it decides whether to send the agent. The agent keeps a refreshed record's commits and files and brings its description and the task's status up to date. `merge.mjs` removes the unread count when an update lands.
+
 ## 0.4.0
 
 - **The map lists the rules that changed.** A rule is something the code decides for a user: a refusal, a limit, a change of state, who may do what. On each update the agent writes at most five for a task, one plain sentence each, with the function and line that enforce it. The new Rules panel groups them by part and shows the ones that changed since you last looked; **Mark as seen** empties it and one link brings the earlier ones back. A task's drawer lists the rules it changed. Tasks already on a map get none: rules start with the next task that lands.

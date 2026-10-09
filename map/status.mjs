@@ -116,6 +116,8 @@ if (rulesChanged.length) {
 const stuck = [...list(data.parts), ...list(data.tasks)].filter((o) => o.status === 'stuck');
 for (const o of stuck) lines.push(`Stuck: ${o.label ? `${o.label} ` : ''}${o.name}, waiting on ${o.waitingShort || o.waitingOn || 'something not stated'}.`);
 
+if (update.refreshed) lines.push(`Commits and push state were refreshed ${update.refreshed.atShort || update.refreshed.at} by refresh.mjs, with no agent.`);
+
 const open = list(data.decisions).filter((d) => !d.answer);
 for (const d of open) {
   lines.push(d.readOnly

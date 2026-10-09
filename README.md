@@ -37,7 +37,7 @@ Six pieces. You only ever type two of them.
 | [`project-map`](./agents/project-map.md) | Agent | Reads the project and writes the map's data. A ready-made page draws it. | When Claude sends it, in the background. |
 | [`mapping-progress`](./skills/mapping-progress/SKILL.md) | Skill | Tells Claude when to update the map and how to answer from it. | On its own: before long runs, after milestones, on "where are we?". |
 | [`grill-page`](./skills/grill-page/SKILL.md) | Skill | Lets you answer Claude's questions about a plan by clicking in a page, in place of typing. | When you say "grill me in a page". |
-| [`hooks.json`](./hooks/hooks.json) | Hook | Tells Claude when a session starts and the map is out of date: a different commit is checked out, or the uncommitted work has changed since the map was read. Silent otherwise, and when the project has no map. | At the start of each session. |
+| [`hooks.json`](./hooks/hooks.json) | Hook | Tells Claude when a session starts and the map is out of date: a different commit is checked out, or the uncommitted work has changed since the map was read. Silent otherwise, and when the project has no map. It also refreshes the map's facts from git, with no agent. | At the start of each session, and after each git command Claude runs. |
 | [`status`](./skills/status/SKILL.md) | Skill | Prints where the project stands from the map, in a few lines. It does not run the agent. | Only when you type `/build-compass:status`. |
 | [`setup`](./skills/setup/SKILL.md) | Skill | Setup and check-up: checks for Node, git and the companion skills, saves your map style, sets how often the map updates with a pointer in your `CLAUDE.md`, offers a first map, and reports what works. Safe to run again. | Only when you type `/build-compass:setup`. |
 
@@ -118,6 +118,15 @@ Everything is clickable. Parts, tasks, milestone items and decisions open their 
 
 **It stays current.** Leave the map open in a tab. It reloads itself when the data changes. In a terminal, `node <plugin>/map/status.mjs` prints the same state in a few lines, and says whether the map is out of date with the code.
 
+**It keeps up with git without the agent.** After each git command Claude runs, and when a session starts, `map/refresh.mjs` brings the facts that need no judgment up to date. It takes a few seconds and no tokens:
+
+- A task's uncommitted work becomes committed work once every file of it is committed, with the commits that hold it.
+- New commits join the list of commits, under a task when its work holds them or the message starts with its label.
+- A commit that has reached a remote is marked as pushed.
+- Whatever is left, commits and changed files no update has read, is counted. The page then says at the top that it is behind the code and by how much, which it could not know before, since a page opened from disk cannot ask git.
+
+It never changes a status, a reason, a rule or the next step. Those wait for the agent. `node <plugin>/map/refresh.mjs --checks` also runs your check commands and attaches the results, when the map has nothing left unread.
+
 **Status comes from the code.** A detailed plan does not count as progress, and an unanswered plan does not reset work that exists. Whether a plan is approved is shown separately.
 
 ## Keeping it cheap
@@ -188,7 +197,7 @@ cp map/* ~/.claude/project-map/
 cp -r skills/mapping-progress skills/grill-page ~/.claude/skills/
 ```
 
-Then add one of the blocks in [`skills/setup/claude-md-block.md`](./skills/setup/claude-md-block.md) to your `CLAUDE.md`. For the note when a session starts with an out-of-date map, add a `SessionStart` hook to your settings that runs `node ~/.claude/project-map/status.mjs --session-start`. Do not install both ways, or you will have everything twice.
+Then add one of the blocks in [`skills/setup/claude-md-block.md`](./skills/setup/claude-md-block.md) to your `CLAUDE.md`. For the note when a session starts with an out-of-date map, add a `SessionStart` hook to your settings that runs `node ~/.claude/project-map/status.mjs --session-start`. To refresh the map's facts after git commands, add a `PostToolUse` hook on `Bash` that runs `node ~/.claude/project-map/refresh.mjs --hook`. Do not install both ways, or you will have everything twice.
 
 ## Development
 

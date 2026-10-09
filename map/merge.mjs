@@ -7,7 +7,8 @@
 //
 // The patch, every key optional:
 //   "set":    { "update": {...}, "next": {...} }     top-level fields, replaced whole; null removes one.
-//                                                    "update" is laid over the previous one instead
+//                                                    "update" is laid over the previous one instead, and
+//                                                    ends what refresh.mjs said was unread
 //   "items":  [ { "id": "T3", "status": "done" } ]   fields laid over the item with that id; null removes a field.
 //                                                    A new id also says where it goes: "in": "tasks".
 //                                                    A rule is an item too: "in": "rules"
@@ -73,7 +74,7 @@ function place(taskId, kind, ownerId) {
 
 for (const [key, value] of Object.entries(patch.set || {})) {
   if (value === null) delete data[key];
-  else if (key === 'update') data.update = { ...data.update, ...value };
+  else if (key === 'update') data.update = { ...data.update, ...value, unread: undefined, refreshed: undefined };
   else data[key] = value;
 }
 
