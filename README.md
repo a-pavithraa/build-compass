@@ -1,6 +1,6 @@
 # build-compass
 
-![A project map for a small booking app: six parts with their statuses, the next milestone, a suggested next step, two decisions and the check that ran](docs/example-map.png)
+![A project map for a small booking app: the items left before the next milestone, a suggested next step, the tasks of two milestones, the parts with their statuses, two decisions, and a button saying two are left to answer](docs/example-map.png)
 
 **Know where your project stands without reading the transcript.**
 
@@ -23,9 +23,10 @@ The picture above is a real map, drawn by this plugin for a made-up booking app.
 - **When you open a session and the map is out of date with the code,** Claude is told so at the start, and updates it before relying on it.
 - **For every finished task,** you can open it and see what changed: what was true before and what is true now, one way to try it, which checks were run on it, whether it is committed and pushed, and the files it touched.
 - **When you come back to the map,** it lists what moved since you last looked, however many updates happened in between.
+- **When the work changes what the code decides,** the map lists those rules in plain words, each with the function and line that enforce it.
 - **When something needs your call,** it appears on the map as a decision with the default Claude will take if you do not answer.
 
-![A task opened on the map, showing what was true before and now, one way to try it, the check that ran, and the code it runs through for checking it by hand](docs/example-task.png)
+![A task opened on the map, showing what was true before and now, one way to try it, the three rules it added with the code that enforces each, and the check that ran](docs/example-task.png)
 
 ## What is in the plugin
 
@@ -52,11 +53,11 @@ The plugin is useful on its own. With two other people's skills installed beside
 4. **Claude builds.** Before it starts, the map is drawn. *(project-map)*
 5. **You check in whenever you like.** Open the map, or ask "where are we?". *(project-map)*
 
-Claude waits for you at steps 2 and 3. It does not carry on with a default there. Defaults apply only to decisions that come up while building.
 ![The same piece of work in 28 seconds: a grilling question answered by clicking, a plan opened at its open decision, then the map updating itself when a task is committed, the rules that task added, and the task opened to show what changed](docs/demo.gif)
 
 The same recording as a sharper video: [docs/demo.mp4](docs/demo.mp4).
 
+Claude waits for you at steps 2 and 3. It does not carry on with a default there. Defaults apply only to decisions that come up while building.
 
 ## The skills it works with
 
@@ -87,22 +88,33 @@ claude plugin install html-plan@claude-community
 
 Source: [anthropics/claude-plugins-community](https://github.com/anthropics/claude-plugins-community), MIT.
 
+### graphify, by Safi Shamsi
+
+*Needed only if you want each rule to list what else calls its code.* It builds a graph of a codebase from its syntax, with no model and no tokens for code. When a project has `graphify-out/graph.json`, each rule on the map also names the functions that call the code enforcing it. The plugin never builds or refreshes that graph: you run graphify when you want one. A caller the graph gets wrong, because the code has moved on since, is refused by the same check that covers every other line on the map.
+
+Source: [safishamsi/graphify](https://github.com/safishamsi/graphify).
+
 ## The map
 
 - **Top of the page:** how many items are left before the next milestone, one suggested next step with its reason, and which parts changed since the last update.
 - **Since you last looked:** every status that moved and every decision answered since you last pressed **Mark as seen**. It is remembered in your browser, so it covers all the updates in between.
+- **Tasks by milestone:** one row for each milestone, with a tile for each task. A milestone with nothing left is a single line that says how many of its tasks are done and how many no check backs; open it to see the tiles. A done task with no recorded check has a hollow tick and says "Done, not checked", where a checked one has a solid tick.
 - **Tasks:** a done or in-progress task opens with before, now and one way to try it, then its checks, then the commits and files. A task with no recorded check says so, shows the code it runs through from where it starts, and asks what you saw when you tried it. Your result joins the answers you copy to Claude.
+- **Rules:** what the code now decides for a user that it did not before: a refusal, a limit, a change of state, who may do what. Each rule is one plain sentence, marked new, changed or removed, with the function and line that enforce it, a test file that names that function, and the task that changed it. A changed rule shows what it was before. Rules are grouped by part, and the task's own drawer lists them too. The panel shows the rules that changed since you last looked; **Mark as seen** empties it, and one link brings the earlier ones back.
 - **Checks run:** when you have listed check commands, each one's latest result, passed or failed, with its last line of output.
 - **Parts:** four to eight main parts, each with one status and a one-line reason. Stuck parts say what they are waiting on.
 - **Milestones:** yours if you have named them. If not, the agent reads the README and commit history and proposes a first version, marked as proposed until you edit it.
 - **Decisions:** anything that needs your call, with the options and the default.
+- **Your answers:** a button stays in the corner of the page while anything is waiting for you, and says how many decisions are left to answer. It opens one sheet with every decision and its answer so far, the tasks you checked by hand, and the block to copy to Claude. A decision that belongs to a plan is listed there too, marked as answered in the plan.
 - **Something of its own:** when a project calls for it, the agent adds a table or a list, such as the screens a user will see or what a release still needs. Only from real data.
+
+![The Rules panel on the map of the booking app: three new rules for confirming a booking, each in plain words with its function and line, the task that added it, a test file and the function that calls it](docs/example-rules.png)
 
 Everything is clickable. Parts, tasks, milestone items and decisions open their detail; the same item is selected in every panel it appears in; the status legend filters the page.
 
 **Your style, asked once.** Dark or light, and one accent color. Every map on your machine uses it.
 
-**Two files.** `.project-map/map.html` is the page, the same for every project. `.project-map/map-data.js` is your project. Milestones live in the data file; edit them there and the agent keeps your edits. A page opened from disk cannot save itself, so your picks on decisions collect in one block of answers under the decision list. Press **Copy answers** and paste it to Claude once. Picks survive the page's own reloads, and each one clears itself once the map records your answer.
+**Two files.** `.project-map/map.html` is the page, the same for every project. `.project-map/map-data.js` is your project. Milestones live in the data file; edit them there and the agent keeps your edits. A page opened from disk cannot save itself, so your picks on decisions collect in one sheet of answers, opened from the button in the corner. Press **Copy answers** and paste it to Claude once. Picks survive the page's own reloads, and each one clears itself once the map records your answer.
 
 **It stays current.** Leave the map open in a tab. It reloads itself when the data changes. In a terminal, `node <plugin>/map/status.mjs` prints the same state in a few lines, and says whether the map is out of date with the code.
 
@@ -118,6 +130,7 @@ An early version drew a new page on every run, which cost 100,000 to 200,000 tok
 - **Git facts come from a script.** Commits, file lists and line counts are not the model's work.
 - **An update re-reads only the parts the new work touches.**
 - **Your `CLAUDE.md` is not loaded,** so a long one adds nothing.
+- **Rules are read from work the agent already reads.** It writes them only for the tasks in an update, at most five each. A script, not the model, says whether a rule is new or changed, what it was before and which test names it. Setup can turn rules off for a project.
 - **You choose how often it runs.** Each update is one run of the agent, so this is the main cost. Setup offers three settings: after milestones (the default), after every finished task, or only when you ask. Claude skips an update that would change nothing and sends tasks that finish close together in one update.
 - **Asking does not run the agent.** `/build-compass:status` and "where are we?" read the map as it is.
 
@@ -141,13 +154,15 @@ It reads the code, git history, the README and docs, plans, and GitHub issues an
 
 It does not load your `CLAUDE.md`, so a long one adds nothing to the cost of an update.
 
-It writes to `.project-map/` in the project, adds that folder to `.gitignore`, and keeps the last 20 versions of the data in `.project-map/history/`. On an update it writes only what changed, and a script merges that into the data, so what an update does not touch stays as it was. Commits, file lists and line counts come from a script that reads git, not from the model, and every hash and path on the map is checked against git before the map is shown. It does not change project code or commit, and it does not run builds or tests of its own choosing. If you list check commands in `.project-map/checks.json`, it runs those and only those.
+It writes to `.project-map/` in the project, adds that folder to `.gitignore`, and keeps the last 20 versions of the data in `.project-map/history/`. On an update it writes only what changed, and a script merges that into the data, so what an update does not touch stays as it was. Commits, file lists and line counts come from a script that reads git, not from the model, and every hash and path on the map is checked against git before the map is shown. It does not change project code or commit, and it does not run builds or tests of its own choosing. It never runs graphify, and reads a graph only through a script that prints the callers of one function. If you list check commands in `.project-map/checks.json`, it runs those and only those.
 
 That boundary is an instruction in the agent's prompt, not a sandbox. The agent has shell access so it can read git history. If you need a hard guarantee, add a permission rule or hook of your own.
 
 ## Limits
 
 - Statuses come from what the agent reads: commits, code, issues, plans. "Done" means the evidence says so, and a done task with no recorded check says "Done, not checked". A check gets recorded in three ways: Claude reports one it ran, you check a task by hand and say what you saw, or a command you listed in `.project-map/checks.json` passes.
+- A rule is the agent's reading of a diff. It can call plumbing a rule or miss a real one, and one it is unsure of is marked "Inferred". The line it points at is checked; the wording is not. Tell Claude when one is wrong, and the agent keeps your version. Tasks finished before 0.4.0 have no rules: they start with the next task that lands.
+- "Test" beside a rule means a test file in that task's commits names the function. It does not mean a test asserts the rule.
 - A passing check command is recorded on every task with a file under the folder it covers. That shows the suite passed with the task's code in place, not that someone verified that task.
 - The map is a snapshot. On a fast-moving branch it can be a task behind by the time it is written. A new session is told when the map is out of date; a running one is not.
 - `.grill/` and `.project-map/` are ignored by git, so the decisions file and the map stay on your machine. Copy `decisions.md` into your docs if the team needs it.
@@ -159,6 +174,8 @@ That boundary is an instruction in the agent's prompt, not a sandbox. The agent 
 The agent's frontmatter sets `model: sonnet`, `effort: medium` and `memory: user`. To change any of these, for example to `opus` for sharper judgement at a higher cost, copy `agents/project-map.md` into `~/.claude/agents/` and edit your copy.
 
 To change the map style, tell Claude the new theme or accent.
+
+To turn the rules off for one project, run `/build-compass:setup`, or write `{ "rules": false }` to `.project-map/settings.json`. The rules already recorded stay in the data and the page hides them.
 
 ## Manual install
 

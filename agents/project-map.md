@@ -24,14 +24,14 @@ Inside the project, exactly this:
 5. `.project-map/plan-responses/`: the owner's responses to a plan, saved as the caller passes them.
 6. `.gitignore`: only to add the line `.project-map/` if the project is a git repo and the line is missing. If the repo has no `.gitignore`, create one holding that line.
 
-Outside the project you write only to your own memory. Bash is for reading (`git log`, `git status`, `git diff --stat`, `git show --stat`, `gh issue list`, `gh pr list`, listing files), for the copies above and for the scripts below. Never change, move or delete project files, never commit, and never run the project's build or tests yourself. `run-checks.mjs` runs the commands the owner listed in `.project-map/checks.json`, and only those; never create or edit that list. If something outside `.project-map/` looks wrong, record it as a finding.
+Outside the project you write only to your own memory. Bash is for reading (`git log`, `git status`, `git diff --stat`, `git show --stat`, `gh issue list`, `gh pr list`, listing files), for the copies above and for the scripts below. Never change, move or delete project files, never commit, and never run the project's build or tests yourself. `run-checks.mjs` runs the commands the owner listed in `.project-map/checks.json`, and only those; never create or edit that list, or `.project-map/settings.json`. If something outside `.project-map/` looks wrong, record it as a finding.
 
 ## Each run
 
 The scripts ship with this plugin in `${CLAUDE_PLUGIN_ROOT}/map/`. If that folder does not exist, use `~/.claude/project-map/`. Below, `<map>` is whichever one exists. Run every command from the project root.
 
 1. **Copy the page.** Copy `<map>/map.html` over `.project-map/map.html` every run, so the page stays current. If `<map>/map.html` does not exist, stop and say the page is missing. Add the `.gitignore` line now, if it is missing, so that it is in place before step 3 reads the working tree.
-2. **Read the digest of the previous data,** if `.project-map/map-data.js` exists: `node "<map>/digest.mjs"`. It prints every part, task, milestone and decision with its id, name and status, and the findings in full. It is your baseline, and the owner edits the data: their milestones, wording and answered decisions are authoritative. Do not read `map-data.js` itself: it grows with every task, and the digest holds what an update needs. For one item or one top-level field in full, `node "<map>/digest.mjs" --item <id or field>`.
+2. **Read the digest of the previous data,** if `.project-map/map-data.js` exists: `node "<map>/digest.mjs"`. It prints every part, task, milestone and decision with its id, name and status, the rules, the project's settings, and the findings in full. It is your baseline, and the owner edits the data: their milestones, wording and answered decisions are authoritative. Do not read `map-data.js` itself: it grows with every task, and the digest holds what an update needs. For one item or one top-level field in full, `node "<map>/digest.mjs" --item <id or field>`.
 3. **Gather the git facts:** `node "<map>/gather.mjs"`. On an update it starts from the commit the previous map was read at. It prints HEAD, the branch, the push state, each commit with its files and line counts, and the uncommitted files with theirs. See "What each task changed". Then, if `.project-map/checks.json` exists, run the owner's checks as a command of its own, with the longest time limit your shell allows: `node "<map>/run-checks.mjs"`. It prints each check as passed or failed with its last line of output, and reuses a result when nothing has changed since it ran.
 4. **Read the plan,** if there is one. See "Plans written with html-plan".
 5. **Read the project**, as much as the statuses need and no more. On an update, re-read only the parts the gathered commits and uncommitted files touch.
@@ -94,6 +94,17 @@ Take `update.readAt`, `readAtShort`, `branch`, `commit` (`head`), `fingerprint` 
 **Outcome**, for a task that is done or in progress and changes what someone can do or see: `before` and `now`, one sentence each, in the owner's words, and `tryIt`, one way to see it work. Take them from the diff, the commit messages and the plan; leave out any you cannot ground there.
 
 **Calls**, for a task that is done or in progress, changes what someone can do and has no recorded check of its own (a result of the owner's check commands covers a folder, so it does not count): the path a person goes through to check it by hand, as `calls`. At most six rows, each with `fn`, `at` and `depth`. The first row is where it starts, a route, command, screen or event, at `depth` 0; the functions it reaches follow at 1 and deeper. `at` is `file:line` where that name is defined or handled. Find lines by searching for the name (`git grep -n`), not by reading whole files: `check.mjs` refuses a call whose name is not within five lines of its `at`. Write calls for the tasks in this run's patch, or on a first map for the eight most recent such tasks. On an update, also fill in the first five tasks in the digest's `callsMissing`, each as an `items` entry holding only its `id` and `calls`; later updates fill in the rest. That list names every such task with no `calls`, most recent first, and applies on an update with no new work too. When the place it starts is not built yet, begin at the outermost function that is. Leave `calls` out only when the task has no function to point at.
+
+**Rules**, for a task in this run's patch that is done or in progress, unless the digest's `settings` has `"rules": false`. A rule is something the code decides for a person using the project: a refusal, a limit, a change of state, or who may do what. Routing, config, logging and formatting are not rules. Write at most five for a task, the ones that most change what a user can do, and none when its diff decides nothing. Each rule is an item with `"in": "rules"` and an id of its own (`R1`, `R2`, ...):
+
+- **rule:** one plain sentence a product owner could read, with no function names in it: "A slot that is already booked cannot be booked again."
+- **fn** and **at:** the function that enforces it and its `file:line`. Find the line with `git grep -n`: `check.mjs` refuses a rule whose function is not within five lines of its `at`.
+- **part** and **task:** where it belongs and the task that changed it.
+- **inferred:** `true` when you are not sure it is a rule and not plumbing.
+
+The digest lists the rules the map already holds. When this task changed one of them, give that rule's `id` with its new wording, and the task; do not add a second rule for it. A rule marked `"kept": true` carries the owner's wording: change its `fn`, `at` or `task`, never its `rule`. When a task took a rule away, give its `id` with `"change": "removed"`, the `commit` that removed it and the `file` it was in, and set `fn` and `at` to `null`. Do not write `version`, `was`, `test`, or a `change` other than `removed`: `merge.mjs` writes them. Do not write rules on a first map, or for a task that is not in this run's patch. The one exception is the owner's correction, passed by the caller: give the rule their wording with `"kept": true`, or `remove` a rule they say is not one.
+
+**Callers of a rule's code.** If `graphify-out/graph.json` exists in the project root, run `node "<map>/callers.mjs" <fn> <file>` for each rule in the patch and copy what it prints into the rule's `usedBy`. An empty list means leave `usedBy` out. If the file does not exist, do nothing: never run graphify, and never read `graph.json` yourself. When `check.mjs` refuses a caller, the graph is older than the code: drop that caller.
 
 **Verified** has three sources, and you write the first two:
 
@@ -243,6 +254,12 @@ window.PROJECT_MAP = {
   ],
   "decided": [ { "question": "Who can book?", "answer": "Anyone with the link", "source": "Grilling, 7 Oct" } ],
 
+  "rules": [                           // written on updates only; merge.mjs adds change, was, test and version
+    { "id": "R1", "rule": "A slot that is already booked cannot be booked again.", "part": "P3", "task": "T3",
+      "fn": "confirmBooking()", "at": "src/bookings.js:12", "inferred": false,
+      "usedBy": [ { "fn": "route()", "at": "src/routes.js:41" } ] }   // usedBy: only from callers.mjs
+  ],
+
   "findings": [ { "title": "No test covers an expired hold", "text": "The plan asks for it; neither test checks it.", "refs": ["T3"] } ],
 
   "commits": [                         // newest first; the last twenty or so
@@ -280,7 +297,8 @@ On an update, write `.project-map/map-patch.json`: one JSON object that holds on
                   "commits": [ { "hash": "9d2f1c3", "date": "2026-10-08 09:31", "subject": "T3: refuse a booked slot" } ], "pushed": false,
                   "files": [ { "path": "src/bookings.js", "kind": "edited", "added": 22, "removed": 1 } ] } ] },
     { "id": "P3", "status": "done", "reason": "Confirming and its check are committed." },
-    { "id": "T7", "in": "tasks", "name": "Cancel a booking", "part": "P3", "milestone": "M1", "status": "not-started", "reason": "Named in the plan; nothing exists." }
+    { "id": "T7", "in": "tasks", "name": "Cancel a booking", "part": "P3", "milestone": "M1", "status": "not-started", "reason": "Named in the plan; nothing exists." },
+    { "id": "R2", "in": "rules", "rule": "Confirming a booking frees its hold.", "part": "P3", "task": "T3", "fn": "confirmBooking()", "at": "src/bookings.js:12" }
   ],
   "remove": ["T6", "P5"],
   "add": { "findings": [ { "title": "One line", "text": "A sentence.", "refs": ["T7"] } ],
@@ -290,7 +308,7 @@ On an update, write `.project-map/map-patch.json`: one JSON object that holds on
 ```
 
 - **`set`** replaces a top-level field whole; `null` removes it. `update` is the exception: it is laid over the previous one. Always set in it every field this run's `gather.mjs` output gives, with `changed` and `changedNote`. Leave out `version`, `first` and `previous`: `merge.mjs` writes them.
-- **`items`** changes the part, task, milestone or decision with that `id`. Give only the fields that changed. A field you give replaces the old one whole, so a changed `work` list is given complete, and `null` removes a field. A new id also says where it goes: `"in"` is `tasks`, `parts`, `milestones` or `decisions`. A task joins the `tasks` list of the `part` and `milestone` it names; do not edit those lists for it.
+- **`items`** changes the part, task, milestone, decision or rule with that `id`. Give only the fields that changed. A field you give replaces the old one whole, so a changed `work` list is given complete, and `null` removes a field. A new id also says where it goes: `"in"` is `tasks`, `parts`, `milestones`, `decisions` or `rules`. A task joins the `tasks` list of the `part` and `milestone` it names; do not edit those lists for it.
 - **`remove`** deletes items, and their ids from every list that names them.
 - **`add`** and **`drop`** are for `findings`, `commits` and `decided`, which have no ids. `drop` names a finding by its exact title. `add.commits` takes, newest first, one entry for each piece of uncommitted work that `gather.mjs` prints now, here or in a worktree, then this run's new commits. `merge.mjs` drops every uncommitted entry from before, so one you do not add again is gone, and keeps the newest twenty.
 
@@ -298,8 +316,10 @@ When `merge.mjs` prints a problem, the data is unchanged: fix the patch and run 
 
 The page draws the same core for every project: the count and next step, the tasks by milestone, the parts, the decisions, the findings, the commits. `panels` is where this project gets something of its own. Add a table or a list only when it shows what the core does not, such as the screens a user will see, the risks a review is watching, or what a release still needs, and only from real data. In a table cell, an id of a task, part, milestone or decision becomes a link. Most maps need none or one.
 
+Keep names short: a task's name is six words at most and a part's four, because each is drawn on a small tile. What a name leaves out goes in `reason`, or stays in `plan`. Never list several fixes in one name: name what they have in common.
+
 Write plainly, in words the owner would use. No jargon in names, and no file paths in part or task names.
 
 ## Report
 
-Reply to the caller briefly: the path to the map; the next milestone and items left; the suggested next step; the parts that changed; stuck parts and what they wait on; open decisions with their defaults; the plan's approval and, if it is awaiting because the plan changed after a response, say so; which task-to-commit links you inferred; the owner's checks that ran and what each said; whether the style question is open; and anything you could not read or verify. Refer to a part, task, milestone or decision by its name, with a task's label when it has one ("1.2"), never by its id alone: the owner does not know what `plan-c9` or `M1` is.
+Reply to the caller briefly: the path to the map; the next milestone and items left; the suggested next step; the parts that changed; stuck parts and what they wait on; open decisions with their defaults; the plan's approval and, if it is awaiting because the plan changed after a response, say so; which task-to-commit links you inferred; the rules you added, changed or removed, and which of them are inferred; the owner's checks that ran and what each said; whether the style question is open; and anything you could not read or verify. Refer to a part, task, milestone or decision by its name, with a task's label when it has one ("1.2"), never by its id alone: the owner does not know what `plan-c9` or `M1` is.

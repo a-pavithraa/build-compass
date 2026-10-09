@@ -22,7 +22,7 @@ try {
 }
 
 if (itemAt >= 0) {
-  const item = ['tasks', 'parts', 'milestones', 'decisions'].flatMap((kind) => list(data[kind])).find((x) => x.id === wanted);
+  const item = ['tasks', 'parts', 'milestones', 'decisions', 'rules'].flatMap((kind) => list(data[kind])).find((x) => x.id === wanted);
   const found = item || data[wanted];
   if (found === undefined) {
     console.error(`No item or field named "${wanted}" in ${file}`);
@@ -58,6 +58,8 @@ const digest = {
     outcome: Boolean(t.outcome), calls: list(t.calls).length, verified: list(t.verified).map((v) => (v.by === 'script' ? `${v.result} (script)` : v.result)),
   })),
   decisions: list(data.decisions).map((d) => lean({ id: d.id, question: d.question, options: d.options, default: d.default, answer: d.answer, readOnly: d.readOnly, waiting: d.waiting })),
+  rules: list(data.rules).map((r) => lean({ id: r.id, fn: r.fn, at: r.at, part: r.part, task: r.task, rule: r.rule, kept: r.kept, removed: r.change === 'removed' })),
+  settings: data.settings,
   findings: list(data.findings),
   checks: list(data.checks).map((c) => `${c.name}: ${c.result} at ${c.at}`),
   callsMissing,

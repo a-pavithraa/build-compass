@@ -34,7 +34,8 @@ The agent starts with no memory of the session. Give it, each time:
 - for each of those tasks, the checks you ran on it: the command or what you looked at, whether it passed, and the commit or working tree it ran on. Say so when you ran none. Leave out the commands in `.project-map/checks.json`, if the project has that list: the agent runs those itself on every update and records what they said;
 - the path of any html-plan plan. Keep plans inside the project so the map can link to them;
 - the user's pasted response to a plan, in full, the first time you dispatch after they paste it. The agent saves it in `.project-map/plan-responses/`, so later updates know the plan was answered without it being passed again. If you change the plan after the response, the map shows it as awaiting the user again, so say if the user approved the changed plan;
-- anything the user said about milestones or priorities, and any answer they gave to a decision on the map.
+- anything the user said about milestones or priorities, and any answer they gave to a decision on the map;
+- any rule on the map the user reworded or said is not a rule, in their words. The agent keeps their wording on later updates.
 
 ## First map on a machine
 

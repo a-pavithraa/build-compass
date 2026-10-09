@@ -9,7 +9,8 @@
 //   "set":    { "update": {...}, "next": {...} }     top-level fields, replaced whole; null removes one.
 //                                                    "update" is laid over the previous one instead
 //   "items":  [ { "id": "T3", "status": "done" } ]   fields laid over the item with that id; null removes a field.
-//                                                    A new id also says where it goes: "in": "tasks"
+//                                                    A new id also says where it goes: "in": "tasks".
+//                                                    A rule is an item too: "in": "rules"
 //   "remove": [ "T5" ]                               items to delete, with every mention of their ids
 //   "add":    { "findings": [...], "commits": [...] } entries added to a list that has no ids
 //   "drop":   { "findings": ["A finding's title"] }  entries taken out of such a list, by title or question
@@ -18,12 +19,13 @@ import { execFileSync } from 'node:child_process';
 import { dirname, resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readSaved, attach } from './checks.mjs';
+import { readSettings, stampRules } from './rules.mjs';
 
 const mapDir = resolve(process.argv[2] || join(process.cwd(), '.project-map'));
 const dataFile = join(mapDir, 'map-data.js');
 const patchFile = join(mapDir, 'map-patch.json');
 const nextFile = join(mapDir, 'map-data.next.js');
-const KINDS = ['tasks', 'parts', 'milestones', 'decisions'];
+const KINDS = ['tasks', 'parts', 'milestones', 'decisions', 'rules'];
 const ID_LISTS = ['tasks', 'needs', 'unlocks', 'decisions', 'waiting', 'changed', 'refs'];
 const ID_FIELDS = ['part', 'milestone', 'open', 'task'];
 const COMMITS_KEEP = 20;
@@ -49,6 +51,7 @@ try {
   stop(`cannot read ${patchFile}: ${err.message}`);
 }
 const previousVersion = (data.update && data.update.version) || 1;
+const rulesBefore = structuredClone(list(data.rules));
 const unknown = Object.keys(patch).filter((key) => !['set', 'items', 'remove', 'add', 'drop'].includes(key));
 if (unknown.length) stop(`the patch has keys merge.mjs does not know: ${unknown.join(', ')}`);
 
@@ -140,6 +143,17 @@ data.update = { ...data.update, version, first: false, previous: `history/${hist
 
 // The results of the owner's check commands, when they ran on what this update read.
 attach(data, readSaved(mapDir));
+
+// What the owner set for this project reaches the page and the next update's digest through the data.
+const settings = readSettings(mapDir);
+if (settings) data.settings = settings;
+else delete data.settings;
+
+let repoRoot = dirname(mapDir);
+try {
+  repoRoot = execFileSync('git', ['-c', 'core.fsmonitor=false', '-C', mapDir, 'rev-parse', '--show-toplevel'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim() || repoRoot;
+} catch { /* not a git repository: a rule's test file is looked for beside the map's folder */ }
+stampRules(data, rulesBefore, new Set(list(patch.items).map((change) => change.id)), version, repoRoot);
 
 writeFileSync(nextFile, `window.PROJECT_MAP = ${JSON.stringify(data, null, 2)};\n`);
 let checked;

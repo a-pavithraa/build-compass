@@ -105,6 +105,14 @@ if (data.next && data.next.step) lines.push(`Next step: ${data.next.step}${data.
 const changed = list(update.changed).map(name);
 lines.push(changed.length ? `Changed since the last map: ${changed.join('; ')}.` : (update.changedNote ? `Changed: ${update.changedNote}` : 'Changed since the last map: nothing recorded.'));
 
+const rulesOn = !(data.settings && data.settings.rules === false);
+const rulesChanged = rulesOn ? list(data.rules).filter((r) => r.version !== undefined && r.version === update.version) : [];
+if (rulesChanged.length) {
+  const RULES_NAMED = 2;
+  const worded = (r) => `${r.change === 'removed' ? 'Removed: ' : ''}${String(r.rule || '').replace(/\.$/, '')}`;
+  lines.push(`Rules changed in this update: ${rulesChanged.length}. ${rulesChanged.slice(0, RULES_NAMED).map(worded).join('; ')}.`);
+}
+
 const stuck = [...list(data.parts), ...list(data.tasks)].filter((o) => o.status === 'stuck');
 for (const o of stuck) lines.push(`Stuck: ${o.label ? `${o.label} ` : ''}${o.name}, waiting on ${o.waitingShort || o.waitingOn || 'something not stated'}.`);
 

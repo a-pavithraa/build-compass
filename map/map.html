@@ -78,6 +78,7 @@ svg.i .fill{fill:currentColor;stroke:none}
 .badge.wait{color:var(--progress);box-shadow:inset 0 0 0 1px var(--progress)}
 .badge.ok{color:var(--done);box-shadow:inset 0 0 0 1px var(--done)}
 .badge.new{color:var(--accent-ink);box-shadow:inset 0 0 0 1px var(--accent)}
+.badge.gone{color:var(--stuck);box-shadow:inset 0 0 0 1px var(--stuck)}
 
 .lead{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:56px;padding:22px 0 20px;align-items:start}
 .lead h1{font-size:40px;line-height:1.08;font-weight:700}
@@ -93,25 +94,36 @@ svg.i .fill{fill:currentColor;stroke:none}
 .btn.quiet:hover{background:var(--select)}
 
 /* The plan drawn as a strip of tasks, grouped by milestone. */
-.sheet{display:flex;flex-wrap:wrap;gap:22px 28px;padding-bottom:22px}
-.sheet > div{min-width:0}
-.ms-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 10px;width:100%;padding:0 2px 8px;border-bottom:1px solid var(--rule-strong);margin-bottom:10px}
+.sheet{padding-bottom:22px}
+.ms{min-width:0;margin-top:22px}
+.ms:first-child,.ms-note + .ms{margin-top:0}
+.ms.shut + .ms.shut{margin-top:4px}
+.ms-note{margin:0 2px 14px}
+.ms-top{display:flex;align-items:flex-end;gap:14px;border-bottom:1px solid var(--rule-strong);margin-bottom:10px}
+.ms-top:has(.ms-head.is-selected){border-bottom-color:var(--accent)}
+.ms.shut .ms-top{align-items:baseline;margin-bottom:0;border-bottom-color:var(--rule)}
+.ms.shut .ms-head{padding-top:8px}
+.ms.shut .ms-head b{flex:0 1 auto}
+.ms-toggle{flex:none;margin-bottom:5px;font-size:13px;white-space:nowrap}
+.ms.shut .ms-toggle{margin-bottom:0}
+.ms-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 10px;flex:1;min-width:0;padding:0 2px 8px}
 .ms-head b{flex:1 1 100%;font-family:var(--head);font-size:16px;font-weight:600;font-stretch:87%;text-wrap:balance}
 .ms-head .tag{color:var(--ink-3);font-size:13px;white-space:nowrap}
 .ms-head .tally{color:var(--ink-2);font-size:13px;white-space:nowrap}
 .ms-head .tag + .tally{margin-left:auto}
 .ms-head:hover b{text-decoration:underline;text-underline-offset:4px}
-.ms-head.is-selected{border-bottom-color:var(--accent)}
 .ms-head.is-selected b{color:var(--accent-ink)}
 .slots{display:grid;gap:6px;grid-template-columns:repeat(auto-fill,minmax(148px,1fr))}
 .slot{position:relative;display:flex;flex-direction:column;gap:3px;min-height:96px;padding:10px 12px;border-radius:8px;
   background:var(--surface);box-shadow:inset 0 0 0 1px var(--rule);transition:box-shadow .15s,opacity .2s}
 .slot:hover{box-shadow:inset 0 0 0 1px var(--ink-3)}
 .slot .sid{display:flex;justify-content:space-between;align-items:center;gap:8px;font-family:var(--mono);font-size:12.5px;color:var(--ink-2)}
-.slot .sname{font-weight:600;line-height:1.25;font-size:14.5px;overflow-wrap:anywhere}
+.slot .sname{font-weight:600;line-height:1.25;font-size:14.5px;overflow-wrap:anywhere;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden}
 .slot .sstat{margin-top:auto;font-size:12.5px;color:var(--ink-2)}
 .slot.done{background:linear-gradient(var(--done-t),var(--done-t)),var(--surface)}
-.slot.in-progress{background:linear-gradient(90deg,var(--progress-t) 0 50%,transparent 50%),var(--surface)}
+.slot.done.unchecked{background:var(--surface)}
+.slot.unchecked .sstat{color:var(--progress);font-weight:600}
+.slot.in-progress{background:linear-gradient(var(--progress-t),var(--progress-t)),var(--surface)}
 .slot.not-started{background:transparent;box-shadow:none;outline:1px dashed var(--rule-strong);outline-offset:-1px}
 .slot.not-started:hover{outline-color:var(--ink-3)}
 .slot.stuck{background:repeating-linear-gradient(135deg,var(--stuck-t) 0 7px,transparent 7px 14px),var(--surface)}
@@ -190,6 +202,19 @@ table.grid{width:100%;border-collapse:collapse;font-size:13.5px}
 table.grid th{text-align:left;font-weight:600;color:var(--ink-3);padding:6px 10px;font-size:12.5px}
 table.grid td{padding:8px 10px;border-top:1px solid var(--rule);vertical-align:top}
 .tblwrap{overflow-x:auto}
+.review{position:fixed;right:24px;bottom:calc(20px + env(safe-area-inset-bottom));z-index:5;display:inline-flex;align-items:center;gap:8px;padding:11px 18px;border-radius:999px;
+  background:var(--accent);color:var(--on-accent);font-weight:600;font-size:14.5px;box-shadow:0 12px 30px -12px var(--shadow),0 2px 6px -2px var(--shadow);transition:background .15s,transform .15s var(--ease)}
+.review:hover{background:color-mix(in oklab,var(--accent) 86%,var(--ink))}
+.review:active{transform:translateY(1px)}
+body:has(.drawer.open) .review{right:calc(min(520px,100vw) + 24px)}
+body:has(.drawer.open.answers) .review{display:none}
+.arow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 12px;align-items:baseline;width:100%;padding:10px 0;border-top:1px solid var(--rule);transition:background .15s}
+.arow:first-of-type{border-top-color:transparent}
+.arow:hover{background:var(--hover)}
+.arow .aq{font-weight:600}
+.arow .aa{grid-column:1;color:var(--ink-2);font-size:13.5px}
+.arow .aa b{color:var(--ink);font-weight:600}
+.arow .badge{grid-row:1;grid-column:2;white-space:nowrap}
 .foot{margin-top:36px;padding-top:14px;border-top:1px solid var(--rule);color:var(--ink-3);font-size:13px;max-width:90ch}
 
 .drawer{position:fixed;top:0;right:0;bottom:0;width:min(520px,100vw);background:var(--surface);border-left:1px solid var(--rule-strong);
@@ -213,6 +238,16 @@ table.grid td{padding:8px 10px;border-top:1px solid var(--rule);vertical-align:t
 .drawer p.t b{color:var(--ink)}
 .drawer ul.ev{margin:8px 0 0;padding-left:18px;color:var(--ink-2);font-size:14px}
 .drawer ul.ev li{margin-top:4px}
+.rgroup{font:600 13px/1.3 var(--body);font-stretch:100%;letter-spacing:0;color:var(--ink-3);padding:12px 10px 2px}
+.rrow{display:grid;grid-template-columns:86px minmax(0,1fr);gap:4px 12px;align-items:start;padding:9px 10px;border-top:1px solid var(--rule)}
+.rgroup + .rrow{border-top-color:transparent}
+.rtext{font-weight:600}
+.rwas,.rat{font-size:13.5px;margin-top:2px;overflow-wrap:anywhere}
+.rwas{color:var(--ink-2)}
+.rat{color:var(--ink-3)}
+.drawer .rrow{grid-template-columns:1fr;padding-left:0;padding-right:0}
+.drawer .rrow:first-child{border-top-color:transparent}
+@media (max-width:560px){.rrow{grid-template-columns:1fr}}
 .calls{margin-top:10px;border-top:1px solid var(--rule)}
 .call{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:baseline;padding:5px 0;border-bottom:1px solid var(--rule)}
 .call .fn{font-family:var(--mono);font-size:12.5px;overflow-wrap:anywhere}
@@ -350,7 +385,10 @@ ul.opts small{color:var(--ink-3)}
     PARTS.forEach(function(p){byId[p.id]={type:'part',o:norm(p)};});
     MILES.forEach(function(m){byId[m.id]={type:'milestone',o:m};});
     DECS.forEach(function(d){byId[d.id]={type:'decision',o:d};});
-    var state = {sel:null, filter:null, picks:{}};
+    /* Every answer the owner has given on this page, gathered in the drawer. Not an id from the data. */
+    var ANSWERS = '@answers';
+    byId[ANSWERS] = {type:'answers', o:{}};
+    var state = {sel:null, filter:null, picks:{}, earlier:false, openMs:{}};
     var changed = arr(U.changed);
 
     /* Picks outlive the page's own reloads. A pick is kept only while its decision is still open
@@ -378,7 +416,8 @@ ul.opts small{color:var(--ink-3)}
         lines.push('', 'Checked by hand at '+(U.commit||'an unknown commit')+(U.uncommittedWork?' plus uncommitted work':'')+':');
         hand.forEach(function(t){ lines.push(shown(t)+'. '+t.name); lines.push('   -> '+state.picks[t.id]); });
       }
-      return {text:lines.join('\n'), open:open.length, picked:picked.length, checks:hand.length};
+      return {text:lines.join('\n'), open:open.length, picked:picked.length, checks:hand.length, hand:hand,
+        said:[picked.length?picked.length+' of '+open.length+' answered':'', hand.length?plural(hand.length,'task','tasks')+' checked by hand':''].filter(Boolean).join(', ')};
     }
 
     /* What moved since this viewer last marked the map as seen, across however many updates
@@ -390,13 +429,19 @@ ul.opts small{color:var(--ink-3)}
       DECS.forEach(function(d){ s.answer[d.id] = d.answer || null; });
       return s;
     }
-    function markSeen(){ try{ localStorage.setItem(SEEN, JSON.stringify(snapshot())); }catch(x){ /* remembering is a convenience only */ } }
+    function markSeen(){ seenVersion = U.version||null; try{ localStorage.setItem(SEEN, JSON.stringify(snapshot())); }catch(x){ /* remembering is a convenience only */ } }
+    /* The rules tasks added, changed or removed. The panel shows those newer than the version this
+       viewer last marked as seen; the earlier ones stay in the data, one click away. */
+    var RULES = (D.settings && D.settings.rules === false) ? [] : arr(D.rules);
+    var seenVersion = null;
+    function freshRules(){ return seenVersion===null ? [] : RULES.filter(function(r){ return typeof r.version==='number' && r.version > seenVersion; }); }
     var since = [], sinceFrom = null;
     if(dataFile==='map-data.js'){
       try{
         var seen = JSON.parse(localStorage.getItem(SEEN) || 'null');
         if(!seen) markSeen();
-        else if(seen.version !== (U.version||null)){
+        else seenVersion = seen.version;
+        if(seen && seen.version !== (U.version||null)){
           sinceFrom = seen.version;
           TASKS.concat(PARTS).forEach(function(o){
             var was = seen.status[o.id];
@@ -406,9 +451,9 @@ ul.opts small{color:var(--ink-3)}
             if(d.answer && !seen.answer[d.id]) since.push({id:d.id, text:'Answered: '+d.answer});
             else if(!(d.id in seen.answer)) since.push({id:d.id, text:'New decision'});
           });
-          if(!since.length) markSeen();
+          if(!since.length && !freshRules().length) markSeen();
         }
-      }catch(x){ since = []; }
+      }catch(x){ since = []; if(seenVersion===null) seenVersion = U.version||null; }
     }
 
     var ICON = {
@@ -423,19 +468,25 @@ ul.opts small{color:var(--ink-3)}
     function glyph(s){
       var inner = {
         'done':'<circle class="fill" cx="8" cy="8" r="7"/><path class="cut" d="M4.9 8.3l2.1 2.1 4.2-4.5"/>',
+        'unchecked':'<circle cx="8" cy="8" r="6.1"/><path d="M5.2 8.3l1.9 1.9 3.7-4"/>',
         'in-progress':'<circle cx="8" cy="8" r="6.1"/><path class="fill" d="M8 1.9a6.1 6.1 0 0 1 0 12.2z"/>',
         'not-started':'<circle cx="8" cy="8" r="6.1"/>',
         'stuck':'<rect class="fill" x="1.5" y="1.5" width="13" height="13" rx="2.5"/><path class="cut" d="M5 8h6"/>'
       }[s] || '<circle cx="8" cy="8" r="6.1"/>';
-      return '<span class="g '+e(s)+'"><svg class="i" viewBox="0 0 16 16" aria-hidden="true">'+inner+'</svg></span>';
+      return '<span class="g '+e(s==='unchecked'?'done':s)+'"><svg class="i" viewBox="0 0 16 16" aria-hidden="true">'+inner+'</svg></span>';
     }
-    /* Done says the work exists. Whether it works is a separate fact, so a done task says when no check backs it. */
-    function taskLabel(t){return t.status==='done' && !arr(t.verified).length ? 'Done, not checked' : LABEL[t.status];}
+    /* Done says the work exists. Whether it works is a separate fact, so a done task says when no check backs it,
+       in words and with a hollow tick where a checked one has a solid one. */
+    function unchecked(t){return t.status==='done' && !arr(t.verified).length;}
+    function taskLabel(t){return unchecked(t) ? 'Done, not checked' : LABEL[t.status];}
+    function taskGlyph(t){return glyph(unchecked(t) ? 'unchecked' : t.status);}
     function stat(s, label){return '<span class="stat">'+glyph(s)+(label||LABEL[s])+'</span>';}
     function shown(o){return o.label || o.id;}
+    /* What to call an item where nothing else names it: a label or a short id such as T3, else its name, never an id like plan-c19. */
+    function called(o){return o.label || (/^[A-Za-z]{1,3}\d{1,4}$/.test(o.id) ? o.id : o.name || o.question || o.id);}
     function ref(id){
       var it = byId[id]; if(!it) return '<span class="mono">'+e(id)+'</span>';
-      var g = it.o.status ? glyph(it.o.status) : '';
+      var g = it.o.status ? (it.type==='task' ? taskGlyph(it.o) : glyph(it.o.status)) : '';
       var name = it.o.name || it.o.short || it.o.question || '';
       return '<button class="ref" data-ref="'+e(id)+'" aria-label="Open '+e(shown(it.o))+': '+e(name)+(it.o.status?', '+(it.type==='task'?taskLabel(it.o):LABEL[it.o.status]).toLowerCase():'')+'">'+g+e(shown(it.o))+'</button>';
     }
@@ -457,20 +508,39 @@ ul.opts small{color:var(--ink-3)}
       return status===state.filter;
     }
     /* Wide enough for a milestone's tag and tally to share a line under its name. */
-    var MS_MIN = 230;
+    /* A milestone with nothing left is one line until it is opened, so the open work is what the eye meets.
+       The line still says how many of its tasks no check backs. */
     function strip(name, tag, id, ids){
-      var done = ids.filter(isDone).length;
-      var head = '<b>'+e(name)+'</b>'+(tag?'<span class="tag">'+tag+'</span>':'')+'<span class="tally num">'+done+' of '+ids.length+' done</span>';
-      var h = '<div style="flex:'+Math.max(ids.length,1)+' 1 '+Math.min(Math.max(ids.length*150,MS_MIN),640)+'px">'
+      var done = ids.filter(isDone).length, unproven = ids.filter(function(i){return unchecked(task(i));}).length;
+      var finished = !!id && ids.length>0 && done===ids.length, shut = finished && !state.openMs[id];
+      var head = (shut?glyph(unproven?'unchecked':'done'):'')+'<b>'+e(name)+'</b>'+(tag?'<span class="tag">'+tag+'</span>':'')
+        + '<span class="tally num">'+done+' of '+ids.length+' done'+(shut&&unproven?', '+unproven+' not checked':'')+'</span>';
+      var h = '<div class="ms'+(shut?' shut':'')+'"><div class="ms-top">'
         + (id?'<button class="ms-head" data-ref="'+e(id)+'">'+head+'</button>':'<div class="ms-head">'+head+'</div>')
-        + '<div class="slots">';
+        + (finished?'<button class="count ms-toggle" data-ms="'+e(id)+'" aria-expanded="'+!shut+'">'+(shut?'Show '+plural(ids.length,'task','tasks'):'Hide tasks')+'</button>':'')
+        + '</div>';
+      if(shut) return h + '</div>';
+      h += '<div class="slots">';
       ids.forEach(function(tid){
         var t = task(tid);
-        h += '<button class="slot '+t.status+(matches(t.status,[tid])?'':' dim')+'" data-ref="'+e(tid)+'">'
-          + '<span class="sid"><span>'+e(shown(t))+'</span>'+glyph(t.status)+'</span>'
+        h += '<button class="slot '+t.status+(unchecked(t)?' unchecked':'')+(matches(t.status,[tid])?'':' dim')+'" data-ref="'+e(tid)+'" title="'+e(t.name)+'">'
+          + '<span class="sid"><span>'+e(shown(t))+'</span>'+taskGlyph(t)+'</span>'
           + '<span class="sname">'+e(t.name)+'</span><span class="sstat">'+taskLabel(t)+'</span></button>';
       });
       return h + '</div></div>';
+    }
+    function ruleRow(r, withTask){
+      var gone = r.change==='removed', file = function(path){ return e(String(path||'').split('/').pop()); };
+      var where = gone
+        ? 'Removed'+(r.commit?' in <span class="mono">'+e(r.commit)+'</span>':'')+(r.file?' &middot; was in <span class="mono" title="'+e(r.file)+'">'+file(r.file)+'</span>':'')
+        : '<span class="mono">'+e(r.fn||'')+'</span> &middot; <span class="mono" title="'+e(r.at)+'">'+file(r.at)+'</span>';
+      return '<div class="rrow" data-rule="'+e(r.id)+'"><div><span class="badge '+(gone?'gone':r.change==='changed'?'wait':'new')+'">'+(gone?'Removed':r.change==='changed'?'Changed':'New')+'</span></div><div>'
+        + '<p class="rtext">'+e(r.rule||'')+'</p>'
+        + (r.change==='changed'&&r.was?'<p class="rwas">Before: '+e(r.was)+'</p>':'')
+        + '<p class="rat">'+where+(withTask&&r.task&&byId[r.task]?' '+ref(r.task):'')+(r.inferred?' <span class="badge" title="The map is not sure that this is a rule">Inferred</span>':'')+'</p>'
+        + (gone?'':'<p class="rat">'+(r.test?'Test: <span class="mono">'+e(r.test)+'</span>':'No test found')+'</p>')
+        + (arr(r.usedBy).length?'<p class="rat">Also used by: '+arr(r.usedBy).map(function(c){return '<span class="mono" title="'+e(c.at)+'">'+e(c.fn)+'</span>';}).join(', ')+'</p>':'')
+        + '</div></div>';
     }
     function fileRows(files){
       return arr(files).map(function(f){
@@ -489,9 +559,11 @@ ul.opts small{color:var(--ink-3)}
         + (plan&&plan.approval?'<span class="badge '+(plan.approval==='approved'?'ok':'wait')+'">'+(plan.approval==='approved'?'Plan approved':'Plan awaiting your response')+'</span>':'')
         + (plan&&plan.file?'<a href="'+href(plan.file)+'">Open the plan</a>':'')+'</header>';
 
-      if(since.length){
+      var fresh = freshRules();
+      if(since.length || fresh.length){
         h += '<section class="paste" id="since"><p class="msg"><b>Since you last looked</b>'+(sinceFrom?' (version '+e(sinceFrom)+' to '+e(U.version||'')+')':'')+'</p><ul class="ev">'
           + since.map(function(c){ var it = byId[c.id]; return '<li>'+ref(c.id)+' '+e(it.o.name||it.o.question||'')+': '+e(c.text)+'</li>'; }).join('')
+          + (fresh.length?'<li>'+plural(fresh.length,'rule','rules')+' changed: <a href="#rules">see Rules</a></li>':'')
           + '</ul><div class="row"><button class="btn quiet" id="seen">Mark as seen</button></div></section>';
       }
       h += '<section class="lead"><div>';
@@ -506,11 +578,14 @@ ul.opts small{color:var(--ink-3)}
       }
       var nx = D.next || {};
       h += '</div><div class="next"><p class="kicker">Suggested next step</p><h2>'+e(nx.step||'Nothing suggested')+'</h2>'+(nx.reason?'<p>'+e(nx.reason)+'</p>':'')
-        + (nx.open&&byId[nx.open]?'<button class="btn" data-ref="'+e(nx.open)+'" data-keep="1">Open '+e(shown(byId[nx.open].o))+ICON.chev+'</button>':'')+'</div></section>';
+        + (nx.open&&byId[nx.open]?'<button class="btn" data-ref="'+e(nx.open)+'" data-keep="1">Open '+e(called(byId[nx.open].o))+ICON.chev+'</button>':'')+'</div></section>';
 
       if(TASKS.length){
+        /* When every milestone is proposed, the page says so once, not on each. */
+        var allProposed = MILES.length>0 && MILES.every(function(m){return m.proposed;});
         h += '<section class="sheet" aria-label="Tasks by milestone">';
-        MILES.forEach(function(m,i){ h += strip(m.name, 'Milestone '+(i+1)+(m.proposed?', proposed':''), m.id, arr(m.tasks)); });
+        if(allProposed) h += '<p class="meta ms-note">Claude proposed these milestones from the README and the history. Tell Claude if they are right, or edit them in map-data.js.</p>';
+        MILES.forEach(function(m,i){ h += strip(m.name, 'Milestone '+(i+1)+(m.proposed&&!allProposed?', proposed':''), m.id, arr(m.tasks)); });
         if(loose.length) h += strip('Not in a milestone', '', null, loose);
         h += '</section>';
       }
@@ -570,7 +645,18 @@ ul.opts small{color:var(--ink-3)}
           + (p.tests?'<div class="ptests">'+e(p.tests)+'</div>':'')+'</div></div>';
       });
       if(!vis.length) h += '<p class="empty">'+(PARTS.length?'No part matches this filter. <button class="count" data-filter="">Show everything</button>':'No parts have been mapped yet.')+'</p>';
-      h += '</section>'+leftCol+'</div>';
+      h += '</section>';
+      if(RULES.length){
+        var listed = state.earlier ? RULES : fresh, earlier = RULES.length - fresh.length;
+        h += '<section id="rules"><div class="sec-head"><h2>Rules</h2><span class="hint">'+(fresh.length?plural(fresh.length,'rule','rules')+' changed':'None changed')+' since you last looked</span></div>';
+        PARTS.concat([null]).forEach(function(p){
+          var mine = listed.filter(function(r){ return p ? r.part===p.id : !(byId[r.part]&&byId[r.part].type==='part'); });
+          if(mine.length) h += '<h3 class="rgroup">'+e(p?p.name:'Not in a part')+'</h3>'+mine.map(function(r){return ruleRow(r,true);}).join('');
+        });
+        if(earlier) h += '<p class="meta" style="padding:0 10px"><button class="count" id="earlier" aria-expanded="'+state.earlier+'">'+(state.earlier?'Show only what changed':'Show the '+plural(earlier,'earlier rule','earlier rules'))+'</button></p>';
+        h += '</section>';
+      }
+      h += leftCol+'</div>';
 
       h += '<div class="stack col-side" id="col-side"><section><div class="sec-head"><h2>Decisions for you</h2><span class="hint">'+openDecs.length+' open</span></div>';
       DECS.forEach(function(d){
@@ -584,13 +670,6 @@ ul.opts small{color:var(--ink-3)}
           + '<span class="d">'+line+(w.length?' Waiting on it: '+w.map(function(x){return e(shown(task(x)));}).join(', ')+'.':'')+'</span></button>';
       });
       if(!DECS.length) h += '<p class="empty">Nothing needs your call right now.</p>';
-      var A = answers();
-      if(A.picked || A.checks){
-        var ready = [A.picked?A.picked+' of '+A.open+' answered':'', A.checks?plural(A.checks,'task','tasks')+' checked by hand':''].filter(Boolean).join(', ');
-        h += '<div class="paste" id="answers"><p class="msg"><b>'+ready+'.</b> Copy them all and paste them to Claude in one go; the next update of the map records them.</p>'
-          + '<code id="line">'+e(A.text)+'</code><div class="row"><button class="btn" id="copy">'+ICON.copy+'Copy answers</button>'
-          + '<button class="btn quiet" id="clearpicks">Clear picks</button><span class="msg" id="copymsg" role="status"></span></div></div>';
-      }
       h += '</section>';
       var CH = arr(D.checks);
       if(CH.length){
@@ -620,6 +699,13 @@ ul.opts small{color:var(--ink-3)}
         + 'This page draws itself from map-data.js in the same folder, and reloads when that file changes. To change a milestone or a wording, edit that file.'
         + (U.previous?' <a href="?data='+encodeURIComponent(U.previous)+'">See the previous version</a>.':'')
         + (dataFile!=='map-data.js'?' You are looking at an earlier version. <a href="'+e(location.pathname.split('/').pop())+'">Back to the current map</a>.':'')+'</p>';
+
+      /* One button that stays in view: what is still to answer, then where to copy it from. */
+      var A = answers(), toAnswer = A.open - A.picked;
+      if(A.open || A.checks){
+        h += '<button class="review" id="review" data-ref="'+ANSWERS+'" data-keep="1">'
+          + (toAnswer ? '<span class="num">'+toAnswer+'</span> to answer' : ICON.copy+'Copy your answers')+'</button>';
+      }
 
       page.innerHTML = h;
       mark();
@@ -654,9 +740,42 @@ ul.opts small{color:var(--ink-3)}
       return h;
     }
 
+    function answersSheet(close){
+      var A = answers(), open = DECS.filter(answerable), inPlan = DECS.filter(function(d){return !d.answer && d.readOnly;});
+      var h = '<div class="dhead"><div><h2>Your answers</h2></div>'+close+'</div>'
+        + '<p class="t">This page cannot save itself. Copy your answers and paste them to Claude once; the next update of the map records them.</p>';
+      if(open.length || inPlan.length){
+        h += '<h3>Decisions</h3>';
+        open.forEach(function(d){
+          var pick = state.picks[d.id];
+          h += '<button class="arow" data-ref="'+e(d.id)+'"><span class="aq">'+e(d.question)+'</span>'
+            + (pick?'<span class="badge new">Your pick</span><span class="aa"><b>'+e(pick)+'</b></span>'
+                   :'<span class="badge">Not answered</span><span class="aa">The default stands: '+e(d['default']||'no default')+'</span>')+'</button>';
+        });
+        inPlan.forEach(function(d){
+          h += '<button class="arow" data-ref="'+e(d.id)+'"><span class="aq">'+e(d.question)+'</span><span class="badge wait">In the plan</span>'
+            + '<span class="aa">Answer it in the plan, not here. Proposed: '+e(d['default']||'no default')+'</span></button>';
+        });
+      }
+      if(A.hand.length){
+        h += '<h3>Checked by hand</h3>';
+        A.hand.forEach(function(t){
+          h += '<button class="arow" data-ref="'+e(t.id)+'"><span class="aq">'+e(t.name)+'</span><span class="badge '+(state.picks[t.id]==='failed'?'gone':'ok')+'">'+HAND[state.picks[t.id]]+'</span></button>';
+        });
+      }
+      if(A.picked || A.checks){
+        h += '<h3>Paste this to Claude</h3><div class="paste" id="answers"><p class="msg"><b>'+A.said+'.</b></p>'
+          + '<code id="line">'+e(A.text)+'</code><div class="row"><button class="btn" id="copy">'+ICON.copy+'Copy answers</button>'
+          + '<button class="btn quiet" id="clearpicks">Clear picks</button><span class="msg" id="copymsg" role="status"></span></div></div>';
+      } else {
+        h += '<p class="meta">Nothing to copy yet. Open a decision above and pick an answer.</p>';
+      }
+      return h;
+    }
     function detail(id){
       var it = byId[id], o = it.o, h = '';
       var close = '<button class="x" id="close" aria-label="Close details">'+ICON.x+'Close</button>';
+      if(it.type==='answers') return answersSheet(close);
       if(it.type==='task'){
         h += '<div class="dhead"><div><span class="what mono">'+e(shown(o))+'</span><h2>'+e(o.name)+'</h2></div>'+close+'</div>'
           + '<div class="dstat">'+stat(o.status, taskLabel(o))+(o.part&&byId[o.part]?'<span>Part '+ref(o.part)+'</span>':'')+(o.milestone&&byId[o.milestone]?'<span>Milestone '+ref(o.milestone)+'</span>':'')+'</div>'
@@ -667,6 +786,8 @@ ul.opts small{color:var(--ink-3)}
           h += '<dl class="kv">'+(out.before?'<dt>Before</dt><dd>'+e(out.before)+'</dd>':'')+(out.now?'<dt>Now</dt><dd>'+e(out.now)+'</dd>':'')
             + (out.tryIt?'<dt>Try it</dt><dd>'+e(out.tryIt)+'</dd>':'')+'</dl>';
         }
+        var ruled = RULES.filter(function(r){return r.task===o.id;});
+        if(ruled.length) h += '<h3>Rules it changed</h3><div>'+ruled.map(function(r){return ruleRow(r,false);}).join('')+'</div>';
         var checks = arr(o.verified);
         if(checks.length){
           h += '<h3>Checked</h3><ul class="ev">'+checks.map(function(c){
@@ -693,8 +814,8 @@ ul.opts small{color:var(--ink-3)}
           });
           h += '</fieldset>';
           h += mine
-            ? '<p class="meta">Added to your answers. <button class="count" id="toanswers">Copy them from the decisions list</button> &middot; <button class="count" id="unpick">Remove this result</button></p>'
-            : '<p class="meta">Your result joins the answers in the decisions list, to copy and paste to Claude. Claude records it against '+e(U.commit||'the commit the map was read at')+'.</p>';
+            ? '<p class="meta">Added to your answers. <button class="count" id="toanswers">Review and copy them</button> &middot; <button class="count" id="unpick">Remove this result</button></p>'
+            : '<p class="meta">Your result joins your answers, to copy and paste to Claude. Claude records it against '+e(U.commit||'the commit the map was read at')+'.</p>';
         }
         h += '<h3>What changed</h3>'+(arr(o.work).length?arr(o.work).map(record).join(''):'<p class="t">Nothing yet. No commit and no uncommitted change belongs to this task.</p>');
         h += '<h3>Where it sits</h3><dl class="kv"><dt>Needs</dt><dd>'+refs(o.needs)+'</dd><dt>Unlocks</dt><dd>'+refs(o.unlocks)+'</dd>'
@@ -746,11 +867,10 @@ ul.opts small{color:var(--ink-3)}
           h += '</fieldset>';
           if(pick){
             var A = answers();
-            h += '<p class="meta">Added to your answers: '+A.picked+' of '+A.open+' answered. <button class="count" id="toanswers">Copy them from the decisions list</button>'
-              + ' &middot; <button class="count" id="unpick">Remove this pick</button></p>'
-              + '<p class="meta">This page is opened from disk and cannot save itself. Claude records your answers when you paste them.</p>';
+            h += '<p class="meta">Added to your answers: '+A.picked+' of '+A.open+' answered. <button class="count" id="toanswers">Review and copy them</button>'
+              + ' &middot; <button class="count" id="unpick">Remove this pick</button></p>';
           } else {
-            h += '<p class="meta">Your pick joins one block of answers in the decisions list, to copy and paste to Claude in one go. This page is opened from disk and cannot save itself.</p>';
+            h += '<p class="meta">Your pick joins your answers, to copy and paste to Claude in one go.</p>';
           }
         }
         var w = arr(o.waiting);
@@ -762,6 +882,7 @@ ul.opts small{color:var(--ink-3)}
     var drawer = document.getElementById('drawer'), opener = null;
     function fill(id){
       drawer.innerHTML = detail(id);
+      drawer.classList.toggle('answers', id===ANSWERS);
       var title = drawer.querySelector('h2');
       if(title){ title.id = 'dtitle'; drawer.setAttribute('aria-labelledby','dtitle'); } else drawer.removeAttribute('aria-labelledby');
     }
@@ -797,8 +918,11 @@ ul.opts small{color:var(--ink-3)}
       if(t.name==='pick'){ state.picks[state.sel]=t.value; persist(); render(); refreshDetail(); var c=document.querySelector('input[name=pick]:checked'); if(c) c.focus(); return; }
       if(t.id==='unpick'){ delete state.picks[state.sel]; persist(); render(); refreshDetail(); var first=document.querySelector('input[name=pick]'); if(first) first.focus(); return; }
       if(t.id==='seen'){ markSeen(); since = []; render(); return; }
-      if(t.id==='clearpicks'){ state.picks={}; persist(); render(); if(state.sel) refreshDetail(); var dec=document.querySelector('#page .dec'); if(dec) dec.focus(); return; }
-      if(t.id==='toanswers'){ select(null); var box=document.getElementById('answers'); if(box){ box.scrollIntoView({block:'center'}); document.getElementById('copy').focus(); } return; }
+      if(t.hasAttribute('data-ms')){ var ms=t.getAttribute('data-ms'); state.openMs[ms] = !state.openMs[ms]; render();
+        var toggle=document.querySelector('[data-ms="'+ms.replace(/"/g,'\\"')+'"]'); if(toggle) toggle.focus(); return; }
+      if(t.id==='earlier'){ state.earlier = !state.earlier; render(); document.getElementById('earlier').focus(); return; }
+      if(t.id==='clearpicks'){ state.picks={}; persist(); render(); refreshDetail(); drawer.focus({preventScroll:true}); return; }
+      if(t.id==='toanswers'){ select(ANSWERS); var copy=document.getElementById('copy'); if(copy) copy.focus(); return; }
       var r = t.getAttribute('data-ref');
       if(r){ if(t.hasAttribute('data-keep') && state.sel===r) return; select(r); }
     });

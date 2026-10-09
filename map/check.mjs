@@ -5,6 +5,7 @@
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { dirname, resolve, join } from 'node:path';
+import { nameIn } from './rules.mjs';
 
 const file = process.argv[2];
 if (!file) {
@@ -41,6 +42,7 @@ register('task', data.tasks);
 register('part', data.parts);
 register('milestone', data.milestones);
 register('decision', data.decisions);
+register('rule', data.rules);
 
 function refs(owner, field, values, kind) {
   for (const id of list(values)) {
@@ -112,6 +114,29 @@ for (const c of list(data.checks)) {
   if (!c.name) problems.push('a check has no name');
   if (!['passed', 'failed'].includes(c.result)) problems.push(`check ${c.name}: result must be "passed" or "failed"`);
 }
+const RULES_PER_TASK = 5;
+const rulesIn = new Map();
+for (const rule of list(data.rules)) {
+  const who = `rule ${rule.id}`;
+  if (!rule.rule) problems.push(`${who}: rule (the sentence) is missing`);
+  if (rule.task) refs(who, 'task', [rule.task], 'task');
+  if (rule.part) refs(who, 'part', [rule.part], 'part');
+  if (rule.change && !['new', 'changed', 'removed'].includes(rule.change)) problems.push(`${who}: change must be "new", "changed" or "removed"`);
+  if (rule.change === 'removed') {
+    if (!rule.commit) problems.push(`${who}: a removed rule must name the commit that removed it`);
+  } else {
+    if (!rule.fn) problems.push(`${who}: fn (the function that enforces it) is missing`);
+    if (!/^[^:]+:\d+$/.test(rule.at || '')) problems.push(`${who}: "at" must be a file and a line, such as src/a.js:12`);
+  }
+  for (const caller of list(rule.usedBy)) {
+    if (!caller.fn || !/^[^:]+:\d+$/.test(caller.at || '')) problems.push(`${who}: a usedBy entry needs fn, and "at" as a file and a line`);
+  }
+  if (rule.task) {
+    const key = `${rule.task} in map version ${rule.version ?? '?'}`;
+    rulesIn.set(key, (rulesIn.get(key) || 0) + 1);
+  }
+}
+for (const [key, count] of rulesIn) if (count > RULES_PER_TASK) problems.push(`task ${key} has ${count} rules; a task gets ${RULES_PER_TASK} at most in one update`);
 for (const finding of list(data.findings)) refs(`finding "${finding.title}"`, 'refs', finding.refs);
 for (const commit of list(data.commits)) if (commit.task) refs(`commit ${commit.hash || '(uncommitted)'}`, 'task', [commit.task], 'task');
 refs('update', 'changed', data.update && data.update.changed);
@@ -139,6 +164,7 @@ if (repoRoot) {
   if (data.update && data.update.commit) ask(`${data.update.commit}^{commit}`);
   for (const { work } of workRecords) for (const commit of list(work.commits)) if (commit.hash) ask(`${commit.hash}^{commit}`);
   for (const commit of list(data.commits)) if (commit.hash) ask(`${commit.hash}^{commit}`);
+  for (const rule of list(data.rules)) if (rule.change === 'removed' && rule.commit) ask(`${rule.commit}^{commit}`);
   const onDisk = (path, work) => existsSync(join((work && work.worktree) || repoRoot, path));
   for (const { work } of workRecords) {
     for (const f of list(work.files)) {
@@ -162,18 +188,26 @@ if (repoRoot) {
     }
   }
   // A call must be where the map says it is: its name has to appear within a few lines of that line.
+  // A rule's function, and the callers a graph gave for it, are held to the same check.
   const NEAR = 5;
-  for (const task of list(data.tasks)) {
-    for (const call of list(task.calls)) {
-      const at = /^([^:]+):(\d+)$/.exec(call.at || '');
-      if (!at || !call.fn) continue;
-      const name = (String(call.fn).match(/[\w$./-]{3,}/g) || []).sort((a, b) => b.length - a.length)[0];
-      let lines = null;
-      try { lines = readFileSync(join(repoRoot, at[1]), 'utf8').split('\n'); } catch { /* reported below */ }
-      if (!lines) problems.push(`task ${task.id}: call "${call.fn}" is at ${call.at}, and that file is not on disk`);
-      else if (+at[2] > lines.length) problems.push(`task ${task.id}: call "${call.fn}" is at ${call.at}, and that file has ${lines.length} lines`);
-      else if (name && !lines.slice(Math.max(0, +at[2] - 1 - NEAR), +at[2] + NEAR).join('\n').includes(name)) problems.push(`task ${task.id}: call "${call.fn}" is not within ${NEAR} lines of ${call.at}`);
+  const nearItsLine = (who, fn, place) => {
+    const at = /^([^:]+):(\d+)$/.exec(place || '');
+    if (!at || !fn) return;
+    const name = nameIn(fn);
+    let lines = null;
+    try { lines = readFileSync(join(repoRoot, at[1]), 'utf8').split('\n'); } catch { /* reported below */ }
+    if (!lines) problems.push(`${who} is at ${place}, and that file is not on disk`);
+    else if (+at[2] > lines.length) problems.push(`${who} is at ${place}, and that file has ${lines.length} lines`);
+    else if (name && !lines.slice(Math.max(0, +at[2] - 1 - NEAR), +at[2] + NEAR).join('\n').includes(name)) problems.push(`${who} is not within ${NEAR} lines of ${place}`);
+  };
+  for (const task of list(data.tasks)) for (const call of list(task.calls)) nearItsLine(`task ${task.id}: call "${call.fn}"`, call.fn, call.at);
+  for (const rule of list(data.rules)) {
+    if (rule.change === 'removed') {
+      if (rule.commit && !exists(`${rule.commit}^{commit}`)) problems.push(`rule ${rule.id}: commit "${rule.commit}" is not in this repository`);
+      continue;
     }
+    nearItsLine(`rule ${rule.id}: "${rule.fn}"`, rule.fn, rule.at);
+    for (const caller of list(rule.usedBy)) nearItsLine(`rule ${rule.id}: caller "${caller.fn}"`, caller.fn, caller.at);
   }
   for (const commit of list(data.commits)) if (commit.hash && !exists(`${commit.hash}^{commit}`)) problems.push(`commits: "${commit.hash}" is not in this repository`);
   for (const f of list(data.unassigned && data.unassigned.files)) if (f.path && f.kind !== 'deleted' && !onDisk(f.path)) problems.push(`unassigned: file "${f.path}" is not on disk`);

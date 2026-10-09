@@ -15,6 +15,7 @@ End with a report of what works, one line per capability, each **ready** or **un
 - **Grilling in a page**: needs the `grilling` skill.
 - **Maps built from plans**: needs the `html-plan` skill.
 - **Checks the map runs itself**: needs Node and a list of commands in `.project-map/checks.json`.
+- **Rules on the map**: needs Node. Say whether they are on or off for this project, and whether a graphify graph is there to add callers.
 
 Then list what setup changed, and what it skipped.
 
@@ -35,10 +36,21 @@ Then list what setup changed, and what it skipped.
 5. **Offer the check commands.** With a list of commands in `.project-map/checks.json`, the map agent runs them on each update, when the code has changed since they last ran, and the map shows which tasks they cover. Without one, every task says no check is recorded until someone reports a check.
    - If the list exists, show it and offer to change it.
    - Otherwise look for how this project is tested: test scripts in `package.json`, a build file, a Makefile, in the root and one folder down. Propose a list, each with a `name`, the command as `run`, the folder as `in`, and `timeoutSeconds` if it needs more than 300. Leave out anything that reaches a real service, costs money or needs secrets this machine may not have, and say that you left it out.
-   - Write the list only on a yes, after checking that `.project-map/` is in `.gitignore`: a list that git tracks is refused. This file is the one thing in `.project-map/` that is yours and the user's to write. Skipping is a valid answer.
+   - Write the list only on a yes, after checking that `.project-map/` is in `.gitignore`: a list that git tracks is refused. This file and `settings.json` in step 6 are the only things in `.project-map/` that are yours and the user's to write. Skipping is a valid answer.
 
    ```json
    { "checks": [ { "name": "Server tests", "run": "npm test", "in": "server", "timeoutSeconds": 300 } ] }
    ```
 
-6. **Offer a first map.** Check that the current folder is a git repository (`git rev-parse --is-inside-work-tree`) with at least one commit or some source files. If it is not a git repository, say the map needs git history to judge progress, and skip this step. Otherwise offer to draw the first map. On a yes, dispatch the `project-map` agent in the background with the project root, tell the user the map will be at `.project-map/map.html` in about a minute, and carry on. When the agent reports, give the user the path and the suggested next step.
+6. **Offer the rules.** On each update the map lists the rules the new work added, changed or removed: what the code now decides for a user, in plain words, with the function and line that enforce each one. This adds a little reading to every update that has new work. Look for `.project-map/settings.json`.
+   - If it holds `"rules": false`, say the rules are off for this project and offer to turn them on.
+   - Otherwise say they are on and offer to turn them off for this project.
+   - Write the file only when the user asks for a change, after checking that `.project-map/` is in `.gitignore`. Keep any other key the file holds. Rules already on the map stay in its data and the page hides them; the change shows at the next update of the map.
+
+   ```json
+   { "rules": false }
+   ```
+
+   Then look for `graphify-out/graph.json` in the project root. If it is there, say that each rule will also list the functions that call its code, read from that graph. If it is not, say that this needs a graph built with graphify, which is optional and which the plugin never builds or refreshes. Do not run graphify yourself.
+
+7. **Offer a first map.** Check that the current folder is a git repository (`git rev-parse --is-inside-work-tree`) with at least one commit or some source files. If it is not a git repository, say the map needs git history to judge progress, and skip this step. Otherwise offer to draw the first map. On a yes, dispatch the `project-map` agent in the background with the project root, tell the user the map will be at `.project-map/map.html` in about a minute, and carry on. When the agent reports, give the user the path and the suggested next step.
