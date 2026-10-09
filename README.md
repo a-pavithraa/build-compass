@@ -53,6 +53,10 @@ The plugin is useful on its own. With two other people's skills installed beside
 5. **You check in whenever you like.** Open the map, or ask "where are we?". *(project-map)*
 
 Claude waits for you at steps 2 and 3. It does not carry on with a default there. Defaults apply only to decisions that come up while building.
+![The same piece of work in 28 seconds: a grilling question answered by clicking, a plan opened at its open decision, then the map updating itself when a task is committed, the rules that task added, and the task opened to show what changed](docs/demo.gif)
+
+The same recording as a sharper video: [docs/demo.mp4](docs/demo.mp4).
+
 
 ## The skills it works with
 
